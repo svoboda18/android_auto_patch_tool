@@ -1,0 +1,15 @@
+BACKUP=y
+#
+# lines to add/change in build.prop for system, dont remove the current lines.
+#
+
+# Enable ADB
+ro.kernel.qemu=1
+persist.service.adb.enable=1                                                    
+persist.service.debuggable=1
+persist.sys.usb.config=mtp,adb
+persist.logd.logpersistd=logcatd
+
+# Add Your Lines Here
+ro.sf.lcd_density=320
+ro.opa.eligible_device=true

@@ -1,0 +1,13 @@
+BACKUP=n
+#
+# lines to add/change in defualt.prop for boot.img, dont remove the current lines.
+#
+ro.adb.secure=0
+ro.secure=0
+ro.debuggable=1
+
+# Adb Enable
+persist.service.adb.enable=1                                                    
+persist.service.debuggable=1
+persist.sys.usb.config=mtp,adb
+persist.logd.logpersistd=logcatd
