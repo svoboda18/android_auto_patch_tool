@@ -39,9 +39,9 @@ Let's talk about the changes/zip folders/files you must do/have to:
 so now, add your required changes & go flash !
 
 # Thanks
-| For : |
-| :-------|
-| topjohnwu | for magisk boot |
-|Tweak Prop | for prop_append funcs |
+| Thanks To : | For : |
+| :-------| :-------|
+| topjohnwu | magiskboot tool |
+|Tweak Prop | prop_append function |
 
 # See you in newer versions!

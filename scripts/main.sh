@@ -52,9 +52,11 @@ done
 }
 
 clean_all() {
-# Clean /tmp and exit
-busybox rm -rf $TMPDIR
-exit 0
+  # Clean /tmp
+  busybox rm -rf "$TMPDIR/*.img"
+  busybox rm -rf "$TMPDIR/*.prop"
+  busybox rm -rf "$TMPDIR/boot"
+  busybox rm -rf "$TMPDIR/*.sh"
 }
 
 get_flags() {
@@ -82,9 +84,9 @@ get_flags() {
 }
 
 setup_bb() {
-    # Make sure this path is in the front, and install bbx
-    echo $PATH | grep -q "^$TMPDIR/bin" || export PATH=$TMPDIR/bin:$PATH
-    $TMPDIR/bin/busybox --install -s $TMPDIR/bin
+   # Make sure this path is in the front, and install bbx
+   echo $PATH | grep -q "^$TMPDIR/bin" || export PATH=$TMPDIR/bin:$PATH
+   $TMPDIR/bin/busybox --install -s $TMPDIR/bin
 }
 
 setup_flashable() {
@@ -105,29 +107,85 @@ setup_flashable() {
   fi
 }
 
+toupper() {
+  echo "$@" | tr '[:lower:]' '[:upper:]'
+}
+
+find_block() {
+  # function for finding device blocks
+  for BLOCK in "$@"; do
+    DEVICE=`find /dev/block -type l -iname $BLOCK | head -n 1` 2>/dev/null
+    if [ ! -z $DEVICE ]; then
+      readlink -f $DEVICE
+      return 0
+    fi
+  done
+  # Fallback by parsing sysfs uevents
+  for uevent in /sys/dev/block/*/uevent; do
+    local DEVNAME=`grep_prop DEVNAME $uevent`
+    local PARTNAME=`grep_prop PARTNAME $uevent`
+    for p in "$@"; do
+      if [ "`toupper $p`" = "`toupper $PARTNAME`" ]; then
+        echo /dev/block/$DEVNAME
+        return 0
+      fi
+    done
+  done
+  return 1
+}
+
+grep_prop() {
+  # a recovery getprop()
+  local REGEX="s/^$1=//p"
+  shift
+  local FILES=$@
+  [ -z "$FILES" ] && FILES='/system/build.prop'
+  sed -n "$REGEX" $FILES 2>/dev/null | head -n 1
+}
+
+find_boot_image() {
+  # Find boot.img partition
+  BOOTIMAGE=
+  if [ ! -z $SLOT ]; then
+    BOOTIMAGE=`find_block boot$SLOT ramdisk$SLOT`
+  else
+    BOOTIMAGE=`find_block boot ramdisk boot_a kern-a android_boot kernel lnx bootimg`
+  fi
+  if [ -z $BOOTIMAGE ]; then
+    # Lets see what fstabs tells me
+    BOOTIMAGE=`grep -v '#' /etc/*fstab* | grep -E '/boot[^a-zA-Z]' | grep -oE '/dev/[a-zA-Z0-9_./-]*' | head -n 1`
+  fi
+}
+
+convert_boot_image() {
+   # Convert to a raw boot.img, it required for devices with kitkat kernel and lower
+   busybox dd if="$BOOTIMAGE" of="$TMPDIR/rawbootimage.img"
+   [ -f /tmp/rawbootimage.img ] && BOOTIMAGEFILE="$TMPDIR/rawbootimage.img" || ex "  ! Unable to convert boot image"
+}
+
 ui_print() {
-    # Sleep for 0.5 then print in gui.
-    sleep 0.5
-    echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD
+   # Sleep for 0.5 then print in gui.
+   sleep 0.6
+   echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD
 }
 
 backup() {
-     # Remove any old backup then backup.
-     busybox rm -rf "${1}.bak"
-     busybox echo $(cat "$1") >> "${1}.bak"
+   # Remove any old backup then backup.
+   busybox rm -rf "${1}.bak"
+   busybox echo $(cat "$1") >> "${1}.bak"
 }
 
 flash_image() {
-     dd if="$1" of="$2"
+   busybox dd if="$1" of="$2"
 }
 
 log() {
-     echo -n -e "$@\n"
+   echo -n -e "$@\n"
 }
 
 ex() {
-	 ui_print "ERROR: $@, script aborted!"
-	 exit 1
+   ui_print "$@"
+   exit 1
 }
 
 prop_append() {
@@ -138,11 +196,12 @@ build="$2"
 # Check for backup
 answer=$(sed "s/BACKUP=//p;d" "$tweak")
 case "$answer" in
-         y|Y|yes|Yes|YES)
+        y|Y|yes|Yes|YES)
 	    # Call backup function for system prop.
 	    backup "$systemprop" ;;
 	
         n|N|no|No|NO) ;;
+        # Nothing
         
         *)
 	    # Check if empty or invalid
@@ -205,7 +264,7 @@ patch_ramdisk() {
 script=patch.sh
 
 # Mouve cpio for changing.
-mv ramdisk.cpio boot/ramdisk.cpio
+mv ramdisk.cpio $BOOTDIR/ramdisk.cpio
 cd $BOOTDIR
 
 # Check if default.prop found, add it if not then append.
@@ -225,7 +284,7 @@ echo "boot --cpio ramdisk.cpio \\" >> $script
 
 # Check if folder is empty from .rc files or not
 if [[ `busybox ls | grep -Eo 'default.prop'` == *"default.prop"* ]]; then
-   ui_print "   ! boot folder empty, skipping .rc replaces"
+   ui_print "   ! Boot folder empty, skipping .rc replaces"
 else
    ui_print "  - Adding rc files to boot.img:"
    for file in $(busybox ls)
@@ -244,41 +303,48 @@ done
 fi
 
 # Add dm-verity/forceencrypt patch line, then run script
-ui_print "   * Removing dm-verity,force encryptition if found.."
+ui_print "   * Removing dm-verity,forceencryptition if found.."
 echo "\"patch $KEEPVERITY $KEEPFORCEENCRYPT\"" >> $script
 chmod 755 $script
 ./$script
 
 # Ship out the new cpio, and return
 cd $TMPDIR
-mv boot/ramdisk.cpio ramdisk.cpio
+mv $BOOTDIR/ramdisk.cpio ramdisk.cpio
 }
 
 port_boot() {
 cd $TMPDIR
 
-# Find boot.img partition from fstab, this is best way
-BOOTIMAGE=`grep -v '#' /etc/*fstab* | grep -E '/boot[^a-zA-Z]' | grep -oE '/dev/[a-zA-Z0-9_./-]*' | head -n 1`
+# Find boot.img partition from fstab, this is the advanced way
+find_boot_image
 
-# Unpack boot from partition (kitkat and older, this will fail)
-boot --unpack $BOOTIMAGE || ex " ! Cant Unpack Boot.img"
+# Support kitkat kernel & older. (boot part dont have img header)
+ui_print "  - Converting boot image"
+convert_boot_image
+
+# Unpack boot from partition (kitkat and older are suppprted)
+ui_print "  - Unpacking boot image"
+boot --unpack $BOOTIMAGEFILE || ex "  ! Unable to unpack boot image!"
 
 # Check of zImage found. then replace kernel
-if [ -f boot/zImage ]; then
+if [ -f $BOOTDIR/zImage ]; then
     ui_print "  - Replacing Kernel.."
     rm -f kernel
-    mv boot/zImage kernel
+    mv $BOOTDIR/zImage kernel
 else
-    ex "No zImage Present In Boot Folder, Aborting.."
+    ex "  ! No zImage present in boot folder, aborting.."
 fi
 
 # Call ramdisk patch function
 patch_ramdisk
 
 # Repack the boot.img as new-boot.img
-boot --repack $BOOTIMAGE || ex " ! Cant Repack Boot.img"
+ui_print "  - Repacking boot image"
+boot --repack $BOOTIMAGEFILE || ex "  ! Unable to repack boot image!"
 
 # Flash the new boot.img
+ui_print "  - Flashing the new boot image"
 flash_image new-boot.img $BOOTIMAGE
 
 cd $ROOTDIR
@@ -303,7 +369,7 @@ ui_print " - Adding Build.prop changes..."
 
 prop_append "$buildprop" "$systemprop"
 
-ui_print " - Porting Boot.img.."
+ui_print " - Porting Boot.img started:"
 
 port_boot
 
