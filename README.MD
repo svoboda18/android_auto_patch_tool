@@ -1,11 +1,11 @@
-*******************************
+---------------------------------------------
 * Auto Porter ZIP by svoboda18
-*******************************
+---------------------------------------------
 
 # Welcome:
-- Welcome To Auto ZIP User's Guide.
+- Welcome To Auto ZIP Git Repo
 Read This Carefuly, It Will Help You Bypass Mistaks.
-It Will Let Tou Know How To Use This Zip Correctly, In Results You Port The ROM Sucessfully.
+It Will Let You Know How To Use This Zip Correctly, In Results You Port The ROM Sucessfully.
 
 # Info
 - Current Version: V0.1 (Alpha)
@@ -22,10 +22,10 @@ It Will Let Tou Know How To Use This Zip Correctly, In Results You Port The ROM 
    * Multip SDK Support.
    * More !
 
-# Guide:
+# Usage Info:
 This zip, can port a rom, it must be flashed after port rom installed. (unported)
 
-Let's talk about the changes you must do/have to:
+Let's talk about the changes/zip folders/files you must do/have to:
 - defualt.prop, contians lines to be added/changed in port boot's image. (Always keep the file as it is, just add to end of it.)
   * dont remove BACKUP= line, it nessecery.
 - build.prop, contians lines to be added/changed in port system's build.prop. (Always keep the file as it is, just add to end of it.)
@@ -39,6 +39,9 @@ Let's talk about the changes you must do/have to:
 so now, add your required changes & go flash !
 
 # Thanks
-- Magisk
-- Tweak Prop
-See you in newer versions!
+| For : |
+| :-------|
+| topjohnwu | for magisk boot |
+|Tweak Prop | for prop_append funcs |
+
+# See you in newer versions!
