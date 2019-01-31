@@ -39,46 +39,9 @@ defaultprop="$TMPDIR/default.prop"
 #             #
 ###############
 
-toupper() {
-  echo "$@" | tr '[:lower:]' '[:upper:]'
-}
-
-grep_prop() {
-  # a recovery getprop()
-  local REGEX="s/^$1=//p"
-  shift
-  local FILES=$@
-  [ -z "$FILES" ] && FILES='/system/build.prop'
-  sed -n "$REGEX" $FILES 2>/dev/null | head -n 1
-}
-
-grep_cmdline() {
-  local REGEX="s/^$1=//p"
-  cat /proc/cmdline | tr '[:space:]' '\n' | sed -n "$REGEX" 2>/dev/null
-}
-
-is_mounted() {
-  cat /proc/mounts | grep -q " `readlink -f $1` " 2>/dev/null
-  return $?
-}
-
-mount_all() {
-   # Mount system as rw
-  log "- Mounting /system"
-  [ -f /system/build.prop ] || is_mounted /system || mount -o rw /system 2>/dev/null
-  if ! is_mounted /system && ! [ -f /system/build.prop ]; then
-    SYSTEMBLOCK=`find_block system$SLOT`
-    mount -t ext4 -o rw $SYSTEMBLOCK /system
-  fi
-  [ -f /system/build.prop ] || is_mounted /system || ex "   ! Cannot mount /system"
-  grep -qE '/dev/root|/system_root' /proc/mounts && SYSTEM_ROOT=true || SYSTEM_ROOT=false
-  if [ -f /system/init ]; then
-    SYSTEM_ROOT=true
-    mkdir /system_root 2>/dev/null
-    mount --move /system /system_root
-    mount -o bind /system_root/system /system
-  fi
-}
+# Load utility functions
+cd $TMPDIR
+. ./util_functions.sh
 
 clean_all() {
   # Clean /tmp
@@ -88,124 +51,10 @@ clean_all() {
   busybox rm -rf "$TMPDIR/*.sh"
 }
 
-get_flags() {
-  # Get correct flags for dm-verity/forceencrypt patch
-  # override variables
-  KEEPVERITY=
-  KEEPFORCEENCRYPT=
-  if [ -z $KEEPVERITY ]; then
-    if $SYSTEM_ROOT; then
-      KEEPVERITY=true
-    else
-      KEEPVERITY=false
-    fi
-  fi
-  if [ -z $KEEPFORCEENCRYPT ]; then
-    grep ' /data ' /proc/mounts | grep -q 'dm-' && FDE=true || FDE=false
-    [ -d /data/unencrypted ] && FBE=true || FBE=false
-    # No data access means unable to decrypt in recovery
-    if $FDE || $FBE || ! $DATA; then
-      KEEPFORCEENCRYPT=true
-    else
-      KEEPFORCEENCRYPT=false
-    fi
-  fi
-}
-
-setup_bb() {
-   # Make sure this path is in the front, and install bbx
-   echo $PATH | grep -q "^$TMPDIR/bin" || export PATH=$TMPDIR/bin:$PATH
-   $TMPDIR/bin/busybox --install -s $TMPDIR/bin
-}
-
-setup_flashable() {
-  # Required for ui_print to work correctly
-  # Preserve environment varibles
-  OLD_PATH=$PATH
-  setup_bb
-  if [ -z $OUTFD ] || readlink /proc/$$/fd/$OUTFD | grep -q /tmp; then
-    # We will have to manually find out OUTFD
-    for FD in `ls /proc/$$/fd`; do
-      if readlink /proc/$$/fd/$FD | grep -q pipe; then
-        if ps | grep -v grep | grep -q " 3 $FD "; then
-          OUTFD=$FD
-          break
-        fi
-      fi
-    done
-  fi
-}
-
-find_block() {
-  # function for finding device blocks
-  for BLOCK in "$@"; do
-    DEVICE=`find /dev/block -type l -iname $BLOCK | head -n 1` 2>/dev/null
-    if [ ! -z $DEVICE ]; then
-      readlink -f $DEVICE
-      return 0
-    fi
-  done
-  # Fallback by parsing sysfs uevents
-  for uevent in /sys/dev/block/*/uevent; do
-    local DEVNAME=`grep_prop DEVNAME $uevent`
-    local PARTNAME=`grep_prop PARTNAME $uevent`
-    for p in "$@"; do
-      if [ "`toupper $p`" = "`toupper $PARTNAME`" ]; then
-        echo /dev/block/$DEVNAME
-        return 0
-      fi
-    done
-  done
-  return 1
-}
-
-find_boot_image() {
-  # Find boot.img partition
-  BOOTIMAGE=
-  if [ ! -z $SLOT ]; then
-    BOOTIMAGE=`find_block boot$SLOT ramdisk$SLOT`
-  else
-    BOOTIMAGE=`find_block boot ramdisk boot_a kern-a android_boot kernel lnx bootimg`
-  fi
-  if [ -z $BOOTIMAGE ]; then
-    # Lets see what fstabs tells me
-    BOOTIMAGE=`grep -v '#' /etc/*fstab* | grep -E '/boot[^a-zA-Z]' | grep -oE '/dev/[a-zA-Z0-9_./-]*' | head -n 1`
-  fi
-   [ ! -z $BOOTIMAGE ] && ui_print "   * Boot partition found at $BOOTIMAGE" || ex "   ! Unable to find boot partition!"
-}
-
-convert_boot_image() {
-   # Convert to a raw boot.img, it required for devices with kitkat kernel and lower
-   busybox dd if="$BOOTIMAGE" of="$TMPDIR/rawbootimage.img"
-   [ -f /tmp/rawbootimage.img ] && BOOTIMAGEFILE="$TMPDIR/rawbootimage.img" && ui_print "   * Boot converted to rawbootimage.img" || ex "  ! Unable to convert boot image!"
-}
-
-ui_print() {
-   # Sleep for 0.7 then print in gui.
-   sleep 0.7
-   echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD
-}
-
-backup() {
-   # Remove any old backup then backup.
-   busybox rm -rf "${1}.bak"
-   busybox echo $(cat "$1") >> "${1}.bak"
-}
-
-flash_image() {
-   busybox dd if=$1 of=$2 && ui_print "   * Sucessfuly flashed $1" || ex "   ! Unable to flash $1!"
-}
-
-log() {
-   echo -n -e "$@\n"
-}
-
-ex() {
-   ui_print "$@"
-   exit 1
-}
-
 fix_permissions() {
+   # Restore the old path, required since chmod,chown wont work without it
+   export PATH="$OLD_PATH"
+   
    # fix permissions for all in /system
    sleep 0.5
    # /system
@@ -291,17 +140,17 @@ fix_permissions() {
    find /system/tts \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
    fi
 
-  # /system/usr
+   # /system/usr
    log "fixing permissions for /system/usr"
    busybox chown -R 0:0 /system/usr
    find /system/usr \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
 
-  # /system/vendor
+   # /system/vendor
    log "fixing permissions for /system/vendor"
    find /system/vendor \( -type d -exec    busybox chown 0.2000 {} + \) -o \( -type f -exec    busybox chown 0.0 {} + \)
    find /system/vendor \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
 
-  # /system/voicebargeindata
+   # /system/voicebargeindata
    if [ -d "/system/voicebargeindata" ]; then
    log "fixing permissions for /system/voicebargeindata"
    busybox chown -R 0:0 /system/voicebargeindata
@@ -382,9 +231,8 @@ if [ "$framework" -eq "1" ]; then
   if [ -d /sdcard/fwpatchundo ]; then
     log "Deleting old undo zip"
     busybox rm -rf /sdcard/fwpatchundo
-  else
-    busybox mkdir -p /sdcard/fwpatchundo
   fi
+  busybox mkdir -p /sdcard/fwpatchundo
   cd $PATCHDIR/apply/
   zip -r -9 /sdcard/fwpatchundo/UndoFwPatch.zip * || ui_print "   ! Unable to backup ${f}!"
 else
@@ -399,7 +247,7 @@ if [ "$framework" -eq "1" ]; then
   log "Working on $f"
   cd $PATCHDIR/system/framework/$f/
   zip -rn .png:.arsc:.ogg:.jpg:.wav $PATCHDIR/apply/system/framework/$f * || ex "   ! Unable to patch ${f}!"
-  ui_print "   - Sucessfully patched ${f}"
+  ui_print "   * Sucessfully patched ${f}"
   log "Patched $f"
 fi
 
@@ -445,7 +293,6 @@ do
 		entry=$(echo "${line#?}" | sed -e 's/[\/&]/\\&/g')
 		# Remove from $build if present
 		grep -q "$entry" "$build" && (sed "/$entry/d" -i "$build" && ui_print "   * All lines containing \"$entry\" removed")
-
 	# Append string
 	elif echo "$line" | grep -q '^\@'
 	then
@@ -454,16 +301,14 @@ do
 		app=$(echo "$entry" | cut -d\| -f2)
 		# Append string to $var's value if present in $build
 		grep -q "$var" "$build" && (sed "s/^$var=.*$/&$app/" -i "$build" && ui_print "   * \"$app\" Appended to value of \"$var\"")
-
-	# Ahange value only iif entry exists
+	# Ahange value only if entry exists
 	elif echo "$line" | grep -q '^\$'
 	then
 		entry=$(echo "${line#?}" | sed -e 's/[\/&]/\\&/g')
 		var=$(echo "$entry" | cut -d\| -f1)
 		new=$(echo "$entry" | cut -d\| -f2)
 		# Change $var's value if $var present in $build
-		grep -q "$var=" "$build" && (sed "s/^$var=.*$/$var=$new/" -i "$build" && ui_print "   * Value of \"$var\" changed to \"$new\"")
-
+		grep -q "$var=" "$build" && (sed "s/^$var=.*$/$var=$new/" -i "$build" && ui_print "   * Value of \"$var\" changed to \"$new\"") 
 	# Add or override entry
 	else
 		var=$(echo "$line" | cut -d= -f1)
@@ -478,7 +323,6 @@ do
 		fi
 	fi
 done
-
 # Trim empty and duplicate lines of $build
 sed '/^ *$/d' -i "$build"
 }
@@ -507,7 +351,7 @@ echo "boot --cpio ramdisk.cpio \\" >> $script
 
 # Check if folder is empty from .rc files or not
 if [[ "$(busybox ls *.rc)" != *"rc"* ]] || [[ "$(busybox ls *.sh)" != *"sh"* ]]; then
-   ui_print "   ! Boot folder empty, skipping .rc replaces"
+   ui_print "  ! Boot folder empty, skipping .rc replaces"
 else
    ui_print "  - Adding rc files to boot.img:"
    for file in $(busybox ls)
@@ -539,7 +383,7 @@ mv $BOOTDIR/ramdisk.cpio ramdisk.cpio
 port_boot() {
 cd $TMPDIR
 
-# Find boot.img partition from fstab, this is the advanced way
+# Find boot.img partition from device blocks/fstab, this is the advanced way
 ui_print "  - Finding boot image partition"
 find_boot_image
 
@@ -547,11 +391,11 @@ find_boot_image
 ui_print "  - Converting boot image"
 convert_boot_image
 
-# Unpack boot from partition (kitkat and older are suppprted)
+# Unpack boot from raw boot image (kitkat and older are suppprted)
 ui_print "  - Unpacking boot image"
 boot --unpack $BOOTIMAGEFILE && ui_print "   * Boot unpacked to $TMPDIR" || ex "  ! Unable to unpack boot image!"
 
-# Check of zImage found. then replace kernel
+# Check if zImage found. then replace kernel
 if [ -f $BOOTDIR/zImage ]; then
     ui_print "  - Replacing Kernel.."
     rm -f kernel
@@ -580,12 +424,11 @@ cd $ROOTDIR
 #              #
 ################
 
-# Call all functions oredred
 setup_flashable
 
 ui_print " - Main Script Started."
 
-mount_all
+mount_system
 
 get_flags
 
@@ -597,13 +440,12 @@ ui_print " - Porting Boot.img started:"
 
 port_boot
 
-ui_print " - Patching power-profile to frameworks-res..."
+ui_print " - Patching power-profile to frameworks-res:"
 
 change_power
 
 ui_print " - Fixing /system permissions"
-# Restore the old path, required since chmod,chown wont work without it
-export PATH="$OLD_PATH"
+
 fix_permissions
 
 clean_all

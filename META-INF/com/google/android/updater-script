@@ -44,6 +44,7 @@ package_extract_file("build.prop", "/tmp/build.prop");
 package_extract_file("default.prop", "/tmp/default.prop");
 package_extract_file("power_profile.xml", "/tmp/power_profile.xml");
 set_perm(0, 0, 0755, "/tmp/main.sh");
+set_perm(0, 0, 0755, "/tmp/util_functions.sh");
 set_perm(0, 0, 0755, "/tmp/bin/zip");
 set_perm(0, 0, 0755, "/tmp/bin/boot");
 set_perm(0, 0, 0755, "/tmp/bin/busybox");
