@@ -438,7 +438,7 @@ fi
 echo "boot --cpio ramdisk.cpio \\" >> $script
 
 # Check if folder is empty from .rc files or not
-if [[ `busybox ls | grep -Eo 'default.prop'` == *"default.prop"* ]]; then
+if [[ "$(busybox ls *.rc)" != *"rc"* ]] || [[ "$(busybox ls *.sh)" != *"sh"* ]]; then
    ui_print "   ! Boot folder empty, skipping .rc replaces"
 else
    ui_print "  - Adding rc files to boot.img:"
