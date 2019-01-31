@@ -23,7 +23,7 @@
 #             #
 ###############
 
-ver=0.1
+ver=0.5
 ROOTDIR=/
 TMPDIR=/tmp
 BOOTDIR="$TMPDIR/boot"

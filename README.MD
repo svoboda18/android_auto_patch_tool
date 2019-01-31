@@ -8,7 +8,7 @@ Read This Carefuly, It Will Help You Bypass Mistaks.
 It Will Let You Know How To Use This Zip Correctly, In Results You Port The ROM Sucessfully.
 
 # Info
-- Current Version: V0.1 (Alpha)
+- Current Version: V0.5 (BETA)
 - Current Stable Version: N/A
 - Current Features: 
    * Automaticly Port Boot.img With:
@@ -41,7 +41,7 @@ so now, add your required changes & go flash !
 # Thanks
 | Thanks To : | For : |
 | :-------| :-------|
-| topjohnwu | magiskboot tool |
+| topjohnwu | magiskboot tool and some functions |
 |Tweak Prop | prop_append function |
 
 # See you in newer versions!
