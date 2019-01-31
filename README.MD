@@ -12,13 +12,15 @@ It Will Let You Know How To Use This Zip Correctly, In Results You Port The ROM 
 - Current Stable Version: N/A
 - Current Features: 
    * Automaticly Port Boot.img With:
-      - Change .rc Files
+      - Change/Replace .rc Files
       - Append/Change default.prop Lines.
-      - Patch Remove DM-Virty / Force Encrypt.
+      - Patch Remove DM-Verity / Force Encrypt.
+   * Patch framework-res.apk With power_profile.xml. (Stock Of The Device)
+      - With Undo Flashable Patch (in cases it get rejected by fw/device stays in boot-animation loop)
+        Thats Will Be Located at: /sdcard/fpatcherundo/UndoFwPatch.zip
    * Replace Libs On System.
    * Append/Chnage build.prop Lines.
 - Next Features: (TODO)
-   * Patch powerprofile.xml With Port Device mAh.
    * Multip SDK Support.
    * More !
 
@@ -30,6 +32,8 @@ Let's talk about the changes/zip folders/files you must do/have to:
   * dont remove BACKUP= line, it nessecery.
 - build.prop, contians lines to be added/changed in port system's build.prop. (Always keep the file as it is, just add to end of it.)
   * dont remove BACKUP= line, it nessecery.
+- power_profile.xml, taked from stock device rom. (located in: /system/framework/framework-res.apk/res/xml/power_profile.xml), it has device's battery mAh, cpu speeds & etc.
+  * it must be in un-decoded (encoded) formar, unless the rom will bootloop.
 - in boot folder, there files to be added/replaced to boot.img, kernel must be placed there with zImage as name.
   * You must add zImage To it or autoport will fail.
   * if you add defualt.prop in boot folder, make sure it correct.
@@ -39,9 +43,9 @@ Let's talk about the changes/zip folders/files you must do/have to:
 so now, add your required changes & go flash !
 
 # Thanks
-| Thanks To : | For : |
+| Thanks To | For |
 | :-------| :-------|
 | topjohnwu | magiskboot tool and some functions |
-|Tweak Prop | prop_append function |
+| kl3 | prop_append function |
 
 # See you in newer versions!

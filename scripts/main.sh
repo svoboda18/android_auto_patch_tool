@@ -26,6 +26,7 @@
 ver=0.5
 ROOTDIR=/
 TMPDIR=/tmp
+PATCHDIR="$TMPDIR/fpatcher"
 BOOTDIR="$TMPDIR/boot"
 systemprop=/system/build.prop
 bootprop="$TMPDIR/boot/default.prop"
@@ -343,6 +344,73 @@ fix_permissions() {
    ui_print "   * Fixed all permissions in /system"
 }
 
+change_power() {
+FW=null
+# Set some flags depending on what copied over
+if [ -f $TMPDIR/power_profile.xml ]; then
+  framework=1
+  busybox mkdir -p $PATCHDIR/system/framework/framework-res.apk/res/xml/
+  busybox cp $TMPDIR/power_profile.xml $PATCHDIR/system/framework/framework-res.apk/res/xml/
+else
+  framework=0
+fi
+
+# Prep things stemming from /system/framework
+if [ "$framework" -eq "1" ]; then
+  busybox mkdir -p $PATCHDIR/apply/system/framework
+  log "Preparing /system/framework files"
+  cd $PATCHDIR/system/framework
+  f=framework-res.apk
+  log "Processing $f"
+  busybox cp /system/framework/$f $PATCHDIR/apply/system/framework/
+    if [ -f "$PATCHDIR/apply/system/framework/$f" ]; then
+      log "$f copied"
+      FW="$f"
+	else
+	  log "Error copying $f"
+	fi
+  log "Done checking $f"
+else
+  log "No power_profile.xml file found"
+fi
+
+# Ok, before doing much else, we should zip up and move the
+# flashable backup somewhere and name it something
+if [ "$framework" -eq "1" ]; then
+  ui_print "   - Backuping $f"
+  log "Preparing backup flashable zip"
+  if [ -d /sdcard/fwpatchundo ]; then
+    log "Deleting old undo zip"
+    busybox rm -rf /sdcard/fwpatchundo
+  else
+    busybox mkdir -p /sdcard/fwpatchundo
+  fi
+  cd $PATCHDIR/apply/
+  zip -r -9 /sdcard/fwpatchundo/UndoFwPatch.zip * || ui_print "   ! Unable to backup ${f}!"
+else
+  log "Nothing to backup... skipping"
+fi
+
+# Now to process the patches - /system/framework
+if [ "$framework" -eq "1" ]; then
+   ui_print "   - Adding power_profile.xml"
+  cd $PATCHDIR/apply/system/framework
+  f=framework-res.apk
+  log "Working on $f"
+  cd $PATCHDIR/system/framework/$f/
+  zip -rn .png:.arsc:.ogg:.jpg:.wav $PATCHDIR/apply/system/framework/$f * || ex "   ! Unable to patch ${f}!"
+  ui_print "   - Sucessfully patched ${f}"
+  log "Patched $f"
+fi
+
+# Move each new app back to its original location
+if [ "$framework" -eq "1" ]; then
+  cd $PATCHDIR/apply/system/framework
+  busybox rm -rf /system/framework/$FW
+  busybox cp *.apk /system/framework/
+fi
+}
+
 prop_append() {
 # Set out files paramaters
 tweak="$1"
@@ -528,6 +596,10 @@ prop_append "$buildprop" "$systemprop"
 ui_print " - Porting Boot.img started:"
 
 port_boot
+
+ui_print " - Patching power-profile to frameworks-res..."
+
+change_power
 
 ui_print " - Fixing /system permissions"
 # Restore the old path, required since chmod,chown wont work without it
