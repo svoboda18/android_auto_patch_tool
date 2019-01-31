@@ -38,17 +38,45 @@ defaultprop="$TMPDIR/default.prop"
 #             #
 ###############
 
+toupper() {
+  echo "$@" | tr '[:lower:]' '[:upper:]'
+}
+
+grep_prop() {
+  # a recovery getprop()
+  local REGEX="s/^$1=//p"
+  shift
+  local FILES=$@
+  [ -z "$FILES" ] && FILES='/system/build.prop'
+  sed -n "$REGEX" $FILES 2>/dev/null | head -n 1
+}
+
+grep_cmdline() {
+  local REGEX="s/^$1=//p"
+  cat /proc/cmdline | tr '[:space:]' '\n' | sed -n "$REGEX" 2>/dev/null
+}
+
+is_mounted() {
+  cat /proc/mounts | grep -q " `readlink -f $1` " 2>/dev/null
+  return $?
+}
+
 mount_all() {
-# Mount system as rw
-for part in system
-do
-	if mount | grep -q "/$part"
-	then
-		mount -o rw,remount "/$part" "/$part" && log "$part mounted"
-	else
-		mount -o rw "/$part" && log "$part mounted"
-	fi
-done
+   # Mount system as rw
+  log "- Mounting /system"
+  [ -f /system/build.prop ] || is_mounted /system || mount -o rw /system 2>/dev/null
+  if ! is_mounted /system && ! [ -f /system/build.prop ]; then
+    SYSTEMBLOCK=`find_block system$SLOT`
+    mount -t ext4 -o rw $SYSTEMBLOCK /system
+  fi
+  [ -f /system/build.prop ] || is_mounted /system || ex "   ! Cannot mount /system"
+  grep -qE '/dev/root|/system_root' /proc/mounts && SYSTEM_ROOT=true || SYSTEM_ROOT=false
+  if [ -f /system/init ]; then
+    SYSTEM_ROOT=true
+    mkdir /system_root 2>/dev/null
+    mount --move /system /system_root
+    mount -o bind /system_root/system /system
+  fi
 }
 
 clean_all() {
@@ -107,10 +135,6 @@ setup_flashable() {
   fi
 }
 
-toupper() {
-  echo "$@" | tr '[:lower:]' '[:upper:]'
-}
-
 find_block() {
   # function for finding device blocks
   for BLOCK in "$@"; do
@@ -134,15 +158,6 @@ find_block() {
   return 1
 }
 
-grep_prop() {
-  # a recovery getprop()
-  local REGEX="s/^$1=//p"
-  shift
-  local FILES=$@
-  [ -z "$FILES" ] && FILES='/system/build.prop'
-  sed -n "$REGEX" $FILES 2>/dev/null | head -n 1
-}
-
 find_boot_image() {
   # Find boot.img partition
   BOOTIMAGE=
@@ -155,17 +170,18 @@ find_boot_image() {
     # Lets see what fstabs tells me
     BOOTIMAGE=`grep -v '#' /etc/*fstab* | grep -E '/boot[^a-zA-Z]' | grep -oE '/dev/[a-zA-Z0-9_./-]*' | head -n 1`
   fi
+   [ ! -z $BOOTIMAGE ] && ui_print "   * Boot partition found at $BOOTIMAGE" || ex "   ! Unable to find boot partition!"
 }
 
 convert_boot_image() {
    # Convert to a raw boot.img, it required for devices with kitkat kernel and lower
    busybox dd if="$BOOTIMAGE" of="$TMPDIR/rawbootimage.img"
-   [ -f /tmp/rawbootimage.img ] && BOOTIMAGEFILE="$TMPDIR/rawbootimage.img" || ex "  ! Unable to convert boot image"
+   [ -f /tmp/rawbootimage.img ] && BOOTIMAGEFILE="$TMPDIR/rawbootimage.img" && ui_print "   * Boot converted to rawbootimage.img" || ex "  ! Unable to convert boot image!"
 }
 
 ui_print() {
-   # Sleep for 0.5 then print in gui.
-   sleep 0.6
+   # Sleep for 0.7 then print in gui.
+   sleep 0.7
    echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD
 }
 
@@ -176,7 +192,7 @@ backup() {
 }
 
 flash_image() {
-   busybox dd if="$1" of="$2"
+   busybox dd if=$1 of=$2 && ui_print "   * Sucessfuly flashed $1" || ex "   ! Unable to flash $1!"
 }
 
 log() {
@@ -186,6 +202,145 @@ log() {
 ex() {
    ui_print "$@"
    exit 1
+}
+
+fix_permissions() {
+   # fix permissions for all in /system
+   sleep 0.5
+   # /system
+   log "fixing permissions for /system"
+   busybox chown 0.0 /system
+   busybox chown 0.0 /system/*
+   busybox chown 0.2000 /system/bin
+   busybox chown 0.2000 /system/vendor
+   busybox chown 0.2000 /system/xbin
+   busybox chmod 755 /system/*
+   find /system -type f -maxdepth 1 -exec busybox chmod 644 {} \;
+
+  # /system/cameradata
+   if [ -d "/system/cameradata" ]; then
+   log "fixing permissions for /system/cameradata"
+   busybox chown -R 0.0 /system/cameradata
+   find /system/cameradata \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   fi
+
+   # /system/bin
+   log "fixing permissions for /system/bin"
+   busybox chmod 755 /system/bin/*
+   busybox chown 0.2000 /system/bin/*
+   busybox chown -h 0.2000 /system/bin/*
+   busybox chown 0.0 /system/bin/log /system/bin/ping
+   busybox chmod 777 /system/bin/log
+
+   # /system/csc
+   if [ -d "/system/csc" ]; then
+   log "fixing permissions for /system/csc"
+   busybox chown -R 0.0 /system/csc
+   find /system/csc \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   fi
+
+   # /system/etc
+   log "fixing permissions for /system/etc"
+   busybox chown -R 0.0 /system/etc
+   find /system/etc \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   busybox chown 1014.2000 /system/etc/dhcpcd/dhcpcd-run-hooks
+   busybox chmod 550 /system/etc/dhcpcd/dhcpcd-run-hooks
+   [ -d "/system/init.d" ] && busybox chmod 755 /system/etc/init.d/*
+
+   # /system/finder_cp
+   if [ -d "/system/finder_cp" ]; then
+   log "fixing permissions for /system/      finder_cp"
+   busybox chown 0.0 /system/fnder_cp/*
+   busybox chmod 644 /system/finder_cp/*
+   fi
+
+   # /system/fonts
+   log "fixing permissions for /system/fonts"
+   busybox chown 0.0 /system/fonts/*
+   busybox chmod 644 /system/fonts/*
+   
+   # /system/lib
+   log "fixing permissions for /system/lib"
+   busybox chown -R 0:0 /system/lib
+   find /system/lib \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+
+   # /system/lib64
+   if [ -d "/system/lib64" ]; then
+   log "fixing permissions for /system/lib64"
+   busybox chown -R 0:0 /system/lib64
+   find /system/lib64 \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   fi
+
+   # /system/media
+   log "fixing permissions for /system/media"
+   busybox chown -R 0:0 /system/media
+   find /system/media \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+
+   # /system/sipdb
+   if [ -d "/system/sipdb" ]; then
+   log "fixing permissions for /system/sipdb"
+   busybox chown 0.0 /system/sipdb/*
+   busybox chmod 655 /system/sipdb/*
+   fi
+
+   # /system/tts
+   if [ -d "/system/tts" ]; then
+   log "fixing permissions for /system/tts"
+   busybox chown -R 0:0 /system/tts
+   find /system/tts \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   fi
+
+  # /system/usr
+   log "fixing permissions for /system/usr"
+   busybox chown -R 0:0 /system/usr
+   find /system/usr \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+
+  # /system/vendor
+   log "fixing permissions for /system/vendor"
+   find /system/vendor \( -type d -exec    busybox chown 0.2000 {} + \) -o \( -type f -exec    busybox chown 0.0 {} + \)
+   find /system/vendor \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+
+  # /system/voicebargeindata
+   if [ -d "/system/voicebargeindata" ]; then
+   log "fixing permissions for /system/voicebargeindata"
+   busybox chown -R 0:0 /system/voicebargeindata
+   find /system/voicebargeindata \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   fi
+
+   # /system/vold
+   if [ -d "/system/vold" ]; then
+   log "fixing permissions for /system/vold"
+   busybox chown 0.0 /system/vold/*
+   busybox chmod 644 /system/vold/*
+   fi
+
+   # /system/wallpaper
+   if [ -d "/system/wallpaper" ]; then
+   log "fixing permissions for /system/wakeupdata"
+   busybox chown -R 0:0 /system/wakeupdata
+   find /system/wakeupdata \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   fi
+
+   # /system/wallpaper
+   if [ -d "/system/wallpaper" ]; then
+   log "fixing permissions for /system/wallpaper"
+   busybox chown 0.0 /system/wallpaper/*
+   busybox chmod 644 /system/wallpaper/*
+   fi
+
+   # /system/xbin
+   log "fixing permissions for /system/xbin"
+   busybox chmod 755 /system/xbin/*
+   busybox chown 0.2000 /system/xbin/*
+   busybox chown -h 0.2000 /system/xbin/*
+   
+   # /system/photoreader
+   if [ -d "/system/photoreader" ]; then
+   log "fixing permissions for /system/photoreader"
+   busybox chown -R 0.2000 /system/photoreader/*
+   find /system/photoreader/ \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   fi
+   ui_print "   * Fixed all permissions in /system"
 }
 
 prop_append() {
@@ -317,6 +472,7 @@ port_boot() {
 cd $TMPDIR
 
 # Find boot.img partition from fstab, this is the advanced way
+ui_print "  - Finding boot image partition"
 find_boot_image
 
 # Support kitkat kernel & older. (boot part dont have img header)
@@ -325,7 +481,7 @@ convert_boot_image
 
 # Unpack boot from partition (kitkat and older are suppprted)
 ui_print "  - Unpacking boot image"
-boot --unpack $BOOTIMAGEFILE || ex "  ! Unable to unpack boot image!"
+boot --unpack $BOOTIMAGEFILE && ui_print "   * Boot unpacked to $TMPDIR" || ex "  ! Unable to unpack boot image!"
 
 # Check of zImage found. then replace kernel
 if [ -f $BOOTDIR/zImage ]; then
@@ -341,7 +497,7 @@ patch_ramdisk
 
 # Repack the boot.img as new-boot.img
 ui_print "  - Repacking boot image"
-boot --repack $BOOTIMAGEFILE || ex "  ! Unable to repack boot image!"
+boot --repack $BOOTIMAGEFILE && ui_print "   * Boot repacked to new-boot.img" || ex "  ! Unable to repack boot image!"
 
 # Flash the new boot.img
 ui_print "  - Flashing the new boot image"
@@ -372,6 +528,11 @@ prop_append "$buildprop" "$systemprop"
 ui_print " - Porting Boot.img started:"
 
 port_boot
+
+ui_print " - Fixing /system permissions"
+# Restore the old path, required since chmod,chown wont work without it
+export PATH="$OLD_PATH"
+fix_permissions
 
 clean_all
 
