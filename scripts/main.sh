@@ -334,7 +334,6 @@ busybox sed '/^ *$/d' -i "$build"
 }
 
 patch_ramdisk() {
-fix_some
 script=patch.sh
 
 # Mouve cpio for changing.
@@ -417,13 +416,8 @@ fi
 patch_ramdisk
 
 # Repack the boot.img as new-boot.img
-fix_recovery
 ui_print "  - Repacking boot image"
-cd $TMPDIR
-busybox mv $TMPDIR/bin/boot $TMPDIR/boottool
-busybox chmod 755 boottool
-./boottool --repack $BOOTIMAGEFILE && ui_print "   * Boot repacked to new-boot.img" || ex "  ! Unable to repack boot image!"
-unfix_recovery
+boot --repack $BOOTIMAGEFILE && ui_print "   * Boot repacked to new-boot.img" || ex "  ! Unable to repack boot image!"
 
 # Flash the new boot.img
 ui_print "  - Flashing the new boot image"
@@ -451,9 +445,11 @@ ui_print " - Adding Build.prop changes..."
 prop_append "$buildprop" "$systemprop"
 
 ui_print " - Porting Boot.img started:"
+fix_recovery
 
 port_boot
 
+unfix_recovery
 ui_print " - Patching power-profile to frameworks-res:"
 
 change_power
