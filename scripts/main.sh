@@ -292,6 +292,9 @@ busybox echo "" >> $build
 # Trim any lines starts with "#" and not "# " of $build
 busybox sed -e '/^#[[:blank:]]/p' -e '/^#/d' -i "$build"
 
+# Trim any lines starts with "#" of $tweak, required since grep will spam us
+busybox sed '/^#/d' -i "$tweak"
+
 # Start appending
 set -e
 busybox sed -r '/(^#|^ *$|^BACKUP=)/d;/(.*=.*|^\!|^\@.*\|.*|^\$.*\|.*)/!d' "$tweak" | while read line
@@ -325,10 +328,14 @@ do
 		if busybox grep -q "$var" "$build"
 		then
 			# Override value in $build if different
-			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s/^$var=.*$/$line/" -i "$build" && ui_print "   * Value of \"$var\" overridden")
 			if [ "$var" == "ro.build.fingerprint" ]; then
-			fp=$(busybox cat /system/build.prop | busybox grep "ro.build.fingerprint=" | busybox dd bs=1 skip=21)
+			fp=$(busybox cat "$tweak" | busybox grep "ro.build.fingerprint=" | busybox dd bs=1 skip=21)
 			busybox sed -i "s@ro.build.fingerprint=$fp@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
+			elif [ "$var" == "ro.build.description" ]; then
+			dc=$(busybox cat "$tweak" | busybox grep "ro.build.description=" | busybox dd bs=1 skip=21)
+			busybox sed -i "s@ro.build.description=$dc@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
+			else
+			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s/^$var=.*$/$line/" -i "$build" && ui_print "   * Value of \"$var\" overridden")
 			fi
 		# Else append entry to $build
 		else
