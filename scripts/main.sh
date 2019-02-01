@@ -45,11 +45,6 @@ cd $TMPDIR
 cd $ROOTDIR
 
 clean_all() {
-  unfix_recovery
-  umount -l /system_root 2>/dev/null
-  umount -l /system 2>/dev/null
-  umount -l /vendor 2>/dev/null
-  umount -l /dev/random 2>/dev/null
   # Clean /tmp
   busybox rm -rf "$TMPDIR/*.img"
   busybox rm -rf "$TMPDIR/*.prop"
@@ -329,11 +324,13 @@ do
 		then
 			# Override value in $build if different
 			if [ "$var" == "ro.build.fingerprint" ]; then
-			fp=$(busybox cat "$tweak" | busybox grep "ro.build.fingerprint=" | busybox dd bs=1 skip=21)
-			busybox sed -i "s@ro.build.fingerprint=$fp@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
+			fp=$(grep_prop "ro.build.fingerprint")
+			fvar=$(busybox cat "$tweak" | busybox grep "ro.build.fingerprint=" | busybox dd bs=1 skip=21)
+			[ "$fp" != "$fvar" ] && busybox sed -i "s@ro.build.fingerprint=$fp@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
 			elif [ "$var" == "ro.build.description" ]; then
-			dc=$(busybox cat "$tweak" | busybox grep "ro.build.description=" | busybox dd bs=1 skip=21)
-			busybox sed -i "s@ro.build.description=$dc@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
+			dc=$(grep_prop "ro.build.description")
+			dvar=$(busybox cat "$tweak" | busybox grep "ro.build.description=" | busybox dd bs=1 skip=21)
+			[ "$dc" != "$dvar" ] && busybox sed -i "s@ro.build.description=$dc@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
 			else
 			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s/^$var=.*$/$line/" -i "$build" && ui_print "   * Value of \"$var\" overridden")
 			fi
@@ -343,6 +340,7 @@ do
 		fi
 	fi
 done
+
 # Trim empty and duplicate lines of $build
 busybox sed '/^ *$/d' -i "$build"
 }
@@ -372,6 +370,7 @@ busybox echo "boot --cpio ramdisk.cpio \\" >> $script
 # Check if folder is empty from .rc files or not
 if [[ "$(busybox ls *.rc)" != *"rc"* ]] || [[ "$(busybox ls *.sh)" != *"sh"* ]]; then
    ui_print "  ! Boot folder empty, skipping .rc replaces"
+   busybox echo "\"add 755 default.prop default.prop\" \\" >> $script
 else
    ui_print "  - Adding rc files to boot.img:"
    for file in $(busybox ls)

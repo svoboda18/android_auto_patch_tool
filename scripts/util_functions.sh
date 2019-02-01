@@ -107,6 +107,7 @@ log() {
 ex() {
    ui_print "$@"
    fix_permissions
+   unfix_recovery
    clean_all
    exit 1
 }
