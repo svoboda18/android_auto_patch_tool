@@ -114,7 +114,7 @@ ex() {
 backup() {
    # Remove any old backup then backup.
    busybox rm -rf "${1}.bak"
-   busybox echo $(cat "$1") >> "${1}.bak"
+   busybox cp -f "$1" "${1}.bak"
 }
 
 mount_system() {
