@@ -25,4 +25,3 @@ persist.logd.logpersistd=logcatd
 
 # Add Your Lines Here
 ro.sf.lcd_density=320
-ro.opa.eligible_device=true

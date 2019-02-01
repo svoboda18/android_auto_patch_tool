@@ -289,6 +289,9 @@ sleep 2
 # Required, since busybox sed wont work without it.
 busybox echo "" >> $build
 
+# Trim any lines starts with "#" and not "# " of $build
+busybox sed -e '/^#[[:blank:]]/p' -e '/^#/d' -i "$build"
+
 # Start appending
 set -e
 busybox sed -r '/(^#|^ *$|^BACKUP=)/d;/(.*=.*|^\!|^\@.*\|.*|^\$.*\|.*)/!d' "$tweak" | while read line
