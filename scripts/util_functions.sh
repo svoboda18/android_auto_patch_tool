@@ -44,6 +44,33 @@ is_mounted() {
   return $?
 }
 
+fix_recovery() {
+  mount -o bind /dev/urandom /dev/random
+  # Temporarily block out all custom recovery binaries/libs
+  mv /sbin /sbin_tmp
+  # Unset library paths
+  OLD_LD_LIB=$LD_LIBRARY_PATH
+  OLD_LD_PRE=$LD_PRELOAD
+  unset LD_LIBRARY_PATH
+  unset LD_PRELOAD
+}
+
+unfix_recovery() {
+  mv /sbin_tmp /sbin 2>/dev/null
+  [ -z $OLD_LD_LIB ] || export LD_LIBRARY_PATH=$OLD_LD_LIB
+  [ -z $OLD_LD_PRE ] || export LD_PRELOAD=$OLD_LD_PRE
+}
+
+fix_some() {
+  [ -z $KEEPVERITY ] && KEEPVERITY=false
+  [ -z $KEEPFORCEENCRYPT ] && KEEPFORCEENCRYPT=false
+  for dir in $BOOTDIR $TMPDIR
+  do
+     cd $dir
+     busybox chmod -R 755 .
+  done
+}
+
 find_block() {
   # function for finding device blocks
   for BLOCK in "$@"; do
@@ -79,6 +106,8 @@ log() {
 
 ex() {
    ui_print "$@"
+   fix_permissions
+   clean_all
    exit 1
 }
 

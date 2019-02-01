@@ -42,8 +42,14 @@ defaultprop="$TMPDIR/default.prop"
 # Load utility functions
 cd $TMPDIR
 . ./util_functions.sh
+cd $ROOTDIR
 
 clean_all() {
+  unfix_recovery
+  umount -l /system_root 2>/dev/null
+  umount -l /system 2>/dev/null
+  umount -l /vendor 2>/dev/null
+  umount -l /dev/random 2>/dev/null
   # Clean /tmp
   busybox rm -rf "$TMPDIR/*.img"
   busybox rm -rf "$TMPDIR/*.prop"
@@ -54,7 +60,7 @@ clean_all() {
 fix_permissions() {
    # Restore the old path, required since chmod,chown wont work without it
    export PATH="$OLD_PATH"
-   
+
    # fix permissions for all in /system
    sleep 0.5
    # /system
@@ -265,7 +271,7 @@ tweak="$1"
 build="$2"
 
 # Check for backup
-answer=$(sed "s/BACKUP=//p;d" "$tweak")
+answer=$(busybox sed "s/BACKUP=//p;d" "$tweak")
 case "$answer" in
         y|Y|yes|Yes|YES)
 	    # Call backup function for system prop.
@@ -280,54 +286,55 @@ case "$answer" in
 esac
 sleep 2
 
-# Required, since sed wont work without it.
-echo "" >> $build
+# Required, since busybox sed wont work without it.
+busybox echo "" >> $build
 
 # Start appending
 set -e
-sed -r '/(^#|^ *$|^BACKUP=)/d;/(.*=.*|^\!|^\@.*\|.*|^\$.*\|.*)/!d' "$tweak" | while read line
+busybox sed -r '/(^#|^ *$|^BACKUP=)/d;/(.*=.*|^\!|^\@.*\|.*|^\$.*\|.*)/!d' "$tweak" | while read line
 do
 	# Remove entry
-	if echo "$line" | grep -q '^\!'
+	if busybox echo "$line" | busybox grep -q '^\!'
 	then
-		entry=$(echo "${line#?}" | sed -e 's/[\/&]/\\&/g')
+		entry=$(busybox echo "${line#?}" | busybox sed -e 's/[\/&]/\\&/g')
 		# Remove from $build if present
-		grep -q "$entry" "$build" && (sed "/$entry/d" -i "$build" && ui_print "   * All lines containing \"$entry\" removed")
+		busybox grep -q "$entry" "$build" && (busybox sed "/$entry/d" -i "$build" && ui_print "   * All lines containing \"$entry\" removed")
 	# Append string
-	elif echo "$line" | grep -q '^\@'
+	elif busybox echo "$line" | busybox grep -q '^\@'
 	then
-		entry=$(echo "${line#?}" | sed -e 's/[\/&]/\\&/g')
-		var=$(echo "$entry" | cut -d\| -f1)
-		app=$(echo "$entry" | cut -d\| -f2)
+		entry=$(busybox echo "${line#?}" | busybox sed -e 's/[\/&]/\\&/g')
+		var=$(busybox echo "$entry" | cut -d\| -f1)
+		app=$(busybox echo "$entry" | cut -d\| -f2)
 		# Append string to $var's value if present in $build
-		grep -q "$var" "$build" && (sed "s/^$var=.*$/&$app/" -i "$build" && ui_print "   * \"$app\" Appended to value of \"$var\"")
+		busybox grep -q "$var" "$build" && (busybox sed "s/^$var=.*$/&$app/" -i "$build" && ui_print "   * \"$app\" Appended to value of \"$var\"")
 	# Ahange value only if entry exists
-	elif echo "$line" | grep -q '^\$'
+	elif busybox echo "$line" | busybox grep -q '^\$'
 	then
-		entry=$(echo "${line#?}" | sed -e 's/[\/&]/\\&/g')
-		var=$(echo "$entry" | cut -d\| -f1)
-		new=$(echo "$entry" | cut -d\| -f2)
+		entry=$(busybox echo "${line#?}" | busybox sed -e 's/[\/&]/\\&/g')
+		var=$(busybox echo "$entry" | cut -d\| -f1)
+		new=$(busybox echo "$entry" | cut -d\| -f2)
 		# Change $var's value if $var present in $build
-		grep -q "$var=" "$build" && (sed "s/^$var=.*$/$var=$new/" -i "$build" && ui_print "   * Value of \"$var\" changed to \"$new\"") 
+		busybox grep -q "$var=" "$build" && (busybox sed "s/^$var=.*$/$var=$new/" -i "$build" && ui_print "   * Value of \"$var\" changed to \"$new\"") 
 	# Add or override entry
 	else
-		var=$(echo "$line" | cut -d= -f1)
+		var=$(busybox echo "$line" | cut -d= -f1)
 		# If variable already present in $build
-		if grep -q "$var" "$build"
+		if busybox grep -q "$var" "$build"
 		then
 			# Override value in $build if different
-			grep -q $(grep "$var" "$tweak") "$build" || (sed "s/^$var=.*$/$line/" -i "$build" && ui_print "   * Value of \"$var\" overridden")
+			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s/^$var=.*$/$line/" -i "$build" && ui_print "   * Value of \"$var\" overridden")
 		# Else append entry to $build
 		else
-			echo "$line" >> "$build" && ui_print "   * Entry \"$line\" added"
+			busybox echo "$line" >> "$build" && ui_print "   * Entry \"$line\" added"
 		fi
 	fi
 done
 # Trim empty and duplicate lines of $build
-sed '/^ *$/d' -i "$build"
+busybox sed '/^ *$/d' -i "$build"
 }
 
 patch_ramdisk() {
+fix_some
 script=patch.sh
 
 # Mouve cpio for changing.
@@ -347,7 +354,7 @@ elif [ ! -f default.prop ]; then
 fi
 
 # Start making a script to add all .rc at once, required since it will bootloop without it.
-echo "boot --cpio ramdisk.cpio \\" >> $script
+busybox echo "boot --cpio ramdisk.cpio \\" >> $script
 
 # Check if folder is empty from .rc files or not
 if [[ "$(busybox ls *.rc)" != *"rc"* ]] || [[ "$(busybox ls *.sh)" != *"sh"* ]]; then
@@ -364,24 +371,26 @@ else
                  log "Skipped $file"
             else
                  ui_print "   * Adding ${file}"
-                 echo "\"add 755 ${file} ${file}\" \\" >> $script
+                 busybox echo "\"add 755 ${file} ${file}\" \\" >> $script
             fi
 done
 fi
 
 # Add dm-verity/forceencrypt patch line, then run script
 ui_print "   * Removing dm-verity,forceencryptition if found.."
-echo "\"patch $KEEPVERITY $KEEPFORCEENCRYPT\"" >> $script
+busybox echo "\"patch $KEEPVERITY $KEEPFORCEENCRYPT\"" >> $script
 chmod 755 $script
-./$script
+. ./$script
 
 # Ship out the new cpio, and return
+rm -f ramdisk.cpio.orig
 cd $TMPDIR
 mv $BOOTDIR/ramdisk.cpio ramdisk.cpio
 }
 
 port_boot() {
 cd $TMPDIR
+fix_some
 
 # Find boot.img partition from device blocks/fstab, this is the advanced way
 ui_print "  - Finding boot image partition"
@@ -408,8 +417,13 @@ fi
 patch_ramdisk
 
 # Repack the boot.img as new-boot.img
+fix_recovery
 ui_print "  - Repacking boot image"
-boot --repack $BOOTIMAGEFILE && ui_print "   * Boot repacked to new-boot.img" || ex "  ! Unable to repack boot image!"
+cd $TMPDIR
+busybox mv $TMPDIR/bin/boot $TMPDIR/boottool
+busybox chmod 755 boottool
+./boottool --repack $BOOTIMAGEFILE && ui_print "   * Boot repacked to new-boot.img" || ex "  ! Unable to repack boot image!"
+unfix_recovery
 
 # Flash the new boot.img
 ui_print "  - Flashing the new boot image"
