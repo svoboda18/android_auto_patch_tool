@@ -8,8 +8,8 @@ Read This Carefuly, It Will Help You Bypass Mistaks.
 Also, It Will Let You Know How To Use This Zip Correctly, In Results You Port The ROM Sucessfully.
 
 # Info
-- **Current Version:** V0.5 (BETA)
-- **Current Stable Version:** N/A
+- **Current Version:** V1.0 (STABLE)
+- **Current Stable Version:** V1.0 (First Stable)
 - **Current Features:**
    * Automaticly Port Boot.img With:
       - Change/Replace .rc Files
@@ -40,9 +40,11 @@ Let's talk about the changes/zip folders/files you must do/have to:
 - defualt.prop, contians lines to be added/changed in port boot's image. (Always keep the file as it is, just add to end of it.)
   * Dont remove BACKUP= line, it nessecery.
   * Some lines can make bootloop like "ro.kernel.qemu=1" , so be careful!.
+  * Dont add use-less lines, it will make things bad.
 - build.prop, contians lines to be added/changed in port system's build.prop. (Always keep the file as it is, just add to end of it.)
   * Dont remove BACKUP= line, it nessecery.
   * Some lines can make bootloop like "ro.kernel.qemu=1" , so be careful!.
+  * Dont add use-less lines, it will make things bad.
 - power_profile.xml, taked from stock device rom. (located in: /system/framework/framework-res.apk/res/xml/power_profile.xml), it has device's battery mAh, cpu speeds & etc.
   * It must be in un-decoded (encoded) format, unless the rom will bootloop.
 - In boot folder, there files to be added/replaced to boot.img, kernel must be placed there with zImage as name.

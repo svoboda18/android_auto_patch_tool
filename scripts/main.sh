@@ -23,7 +23,7 @@
 #             #
 ###############
 
-ver=0.5
+ver=1.0
 ROOTDIR=/
 TMPDIR=/tmp
 PATCHDIR="$TMPDIR/fpatcher"
@@ -447,7 +447,7 @@ cd $ROOTDIR
 
 setup_flashable
 
-ui_print " - Main Script Started."
+ui_print " - Main Script Started, Current Version: $ver"
 
 mount_system
 

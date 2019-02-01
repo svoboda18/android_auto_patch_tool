@@ -19,7 +19,7 @@ ui_print("  ");
 ui_print("***********************************");
 ui_print("*          Auto Port ZIP          *");
 ui_print("***********************************");
-ui_print(" Version: 0.5 ");
+ui_print(" Version: 1.0 ");
 ui_print(" Maintainer: svoboda18 ");
 ui_print("***********************************");
 
