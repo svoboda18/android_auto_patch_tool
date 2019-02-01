@@ -323,6 +323,10 @@ do
 		then
 			# Override value in $build if different
 			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s/^$var=.*$/$line/" -i "$build" && ui_print "   * Value of \"$var\" overridden")
+			if [ "$var" == "ro.build.fingerprint" ]; then
+			fp=$(busybox cat /system/build.prop | busybox grep "ro.build.fingerprint=" | busybox dd bs=1 skip=21)
+			busybox sed -i "s@ro.build.fingerprint=$fp@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
+			fi
 		# Else append entry to $build
 		else
 			busybox echo "$line" >> "$build" && ui_print "   * Entry \"$line\" added"
