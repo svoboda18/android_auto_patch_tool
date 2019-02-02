@@ -367,8 +367,8 @@ fi
 # Start making a script to add all .rc at once, required since it will bootloop without it.
 busybox echo "boot --cpio ramdisk.cpio \\" >> $script
 
-# Check if folder is empty from .rc files or not
-if [[ "$(busybox ls *.rc)" != *"rc"* ]] || [[ "$(busybox ls *.sh)" != *"sh"* ]]; then
+# Check if folder is empty from .rc/.sh files or not
+if [[ "$(busybox ls *.rc)" != *"rc"* && "$(busybox ls *.sh)" != *"sh"* ]]; then
    ui_print "  ! Boot folder empty, skipping .rc replaces"
    busybox echo "\"add 755 default.prop default.prop\" \\" >> $script
 else
@@ -394,14 +394,18 @@ busybox echo "\"patch $KEEPVERITY $KEEPFORCEENCRYPT\"" >> $script
 chmod 755 $script
 . ./$script
 
+# Remove the .orig cpio
+busybox rm -f ramdisk.cpio.orig
+
 # Ship out the new cpio, and return
-rm -f ramdisk.cpio.orig
 cd $TMPDIR
 mv $BOOTDIR/ramdisk.cpio ramdisk.cpio
 }
 
 port_boot() {
 cd $TMPDIR
+
+# Fix perms, and KEEP* flags
 fix_some
 
 # Find boot.img partition from device blocks/fstab, this is the advanced way
@@ -458,11 +462,11 @@ ui_print " - Adding Build.prop changes..."
 prop_append "$buildprop" "$systemprop"
 
 ui_print " - Porting Boot.img started:"
+
 fix_recovery
-
 port_boot
-
 unfix_recovery
+
 ui_print " - Patching power-profile to frameworks-res:"
 
 change_power
