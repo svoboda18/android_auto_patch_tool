@@ -235,7 +235,7 @@ if [ "$framework" -eq "1" ]; then
   fi
   busybox mkdir -p /sdcard/fwpatchundo
   cd $PATCHDIR/apply/
-  zip -r -9 /sdcard/fwpatchundo/UndoFwPatch.zip * || ui_print "   ! Unable to backup ${f}!"
+  zip -r -4 /sdcard/fwpatchundo/UndoFwPatch.zip * || ui_print "   ! Unable to backup ${f}!"
 else
   log "Nothing to backup... skipping"
 fi
