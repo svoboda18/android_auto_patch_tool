@@ -368,7 +368,7 @@ fi
 busybox echo "boot --cpio ramdisk.cpio \\" >> $script
 
 # Check if folder is empty from .rc/.sh files or not
-if [[ "$(busybox ls *.rc)" != *"rc"* && "$(busybox ls *.sh)" != *"sh"* ]]; then
+if [[ "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"rc"* && "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"sh"* ]]; then
    ui_print "  ! Boot folder empty, skipping .rc replaces"
    busybox echo "\"add 755 default.prop default.prop\" \\" >> $script
 else
@@ -431,6 +431,12 @@ fi
 
 # Call ramdisk patch function
 patch_ramdisk
+
+# Patch dtb if found
+if ! $KEEPVERITY; then
+  [ -f dtb ] && boot --dtb-patch dtb && ui_print "   * Removing dm(avb)-verity in dtb"
+  [ -f extra ] && boot --dtb-patch extra && ui_print "   * Removing dm(avb)-verity in extra-dtb"
+fi
 
 # Repack the boot.img as new-boot.img
 ui_print "  - Repacking boot image"
