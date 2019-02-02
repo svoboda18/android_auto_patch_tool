@@ -113,8 +113,8 @@ ex() {
 }
 
 backup() {
-   # Remove any old backup then backup.
-   busybox rm -rf "${1}.bak"
+   # Keep any old backup then backup.
+   [ -f "${1}.bak" ] && backup=$1.`date +%d-%b-%H-%M`.bak && busybox cp -f "$1" "$backup"
    busybox cp -f "$1" "${1}.bak"
 }
 
