@@ -114,8 +114,7 @@ ex() {
 
 backup() {
    # Keep any old backup then backup.
-   [ -f "${1}.bak" ] && backup=$1.`date +%d-%b-%H-%M`.bak && busybox cp -f "$1" "$backup"
-   busybox cp -f "$1" "${1}.bak"
+   [ -f "${1}.bak" ] && { backup=$1.`date +%d-%b-%H-%M`.bak && busybox cp -f "$1" "$backup" } || busybox cp -f "$1" "${1}.bak"
 }
 
 mount_system() {
