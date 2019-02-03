@@ -68,7 +68,7 @@ fix_permissions() {
    busybox chmod 755 /system/*
    find /system -type f -maxdepth 1 -exec busybox chmod 644 {} \;
 
-  # /system/cameradata
+   # /system/cameradata
    if [ -d "/system/cameradata" ]; then
    log "fixing permissions for /system/cameradata"
    busybox chown -R 0.0 /system/cameradata
@@ -80,8 +80,8 @@ fix_permissions() {
    busybox chmod 755 /system/bin/*
    busybox chown 0.2000 /system/bin/*
    busybox chown -h 0.2000 /system/bin/*
-   busybox chown 0.0 /system/bin/log /system/bin/ping
-   busybox chmod 777 /system/bin/log
+   [ -f "/system/bin/log" ] && busybox chown 0.0 /system/bin/log && busybox chmod 777 /system/bin/log
+   [ -f "/system/bin/ping" ] && busybox chown 0.0 /system/bin/ping
 
    # /system/csc
    if [ -d "/system/csc" ]; then
@@ -94,8 +94,10 @@ fix_permissions() {
    log "fixing permissions for /system/etc"
    busybox chown -R 0.0 /system/etc
    find /system/etc \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   [ -f "/system/etc/dhcpcd" ] && {
    busybox chown 1014.2000 /system/etc/dhcpcd/dhcpcd-run-hooks
    busybox chmod 550 /system/etc/dhcpcd/dhcpcd-run-hooks
+   }
    [ -d "/system/init.d" ] && busybox chmod 755 /system/etc/init.d/*
 
    # /system/finder_cp
@@ -148,7 +150,7 @@ fix_permissions() {
 
    # /system/vendor
    log "fixing permissions for /system/vendor"
-   find /system/vendor \( -type d -exec    busybox chown 0.2000 {} + \) -o \( -type f -exec    busybox chown 0.0 {} + \)
+   find /system/vendor \( -type d -exec busybox chown 0.2000 {} + \) -o \( -type f -exec busybox chown 0.0 {} + \)
    find /system/vendor \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
 
    # /system/voicebargeindata
