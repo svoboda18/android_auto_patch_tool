@@ -93,7 +93,7 @@ fix_permissions() {
    # /system/etc
    log "fixing permissions for /system/etc"
    busybox chown -R 0.0 /system/etc
-   find /system/etc \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
+   find /system/etc \( -type d -exec busybox chmod 755 || true {} + \) -o \( -type f -exec busybox chmod 644 || true {} + \)
    [ -f "/system/etc/dhcpcd" ] && {
    busybox chown 1014.2000 /system/etc/dhcpcd/dhcpcd-run-hooks
    busybox chmod 550 /system/etc/dhcpcd/dhcpcd-run-hooks
@@ -204,6 +204,7 @@ if [ -f $TMPDIR/power_profile.xml ]; then
   busybox mkdir -p $PATCHDIR/system/framework/framework-res.apk/res/xml/
   busybox cp $TMPDIR/power_profile.xml $PATCHDIR/system/framework/framework-res.apk/res/xml/
 else
+  ui_print "   ! Nothing to patch, power_profile.xml not found!"
   framework=0
 fi
 
