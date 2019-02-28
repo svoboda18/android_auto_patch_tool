@@ -15,59 +15,51 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses
 #
 
-ui_print("  ");
-ui_print("***********************************");
-ui_print("*          Auto Port ZIP          *");
-ui_print("***********************************");
-ui_print(" Version: 1.0 ");
-ui_print(" Maintainer: svoboda18 ");
-ui_print("***********************************");
+###############
+#             #
+#  VARIABLES  #
+#             #
+###############
 
-ui_print("  ");
-ui_print(" Mounting System ");
-show_progress(1.000000, 0);
-run_program("/sbin/busybox", "mount", "/system");
-set_progress(0.100000);
+ZIPDIR="$INSTALLER"
+SCRIPTSDIR="$ZIPDIR/scripts"
+BOOTDIR="$ZIPDIR/boot"
+SYSTEMDIR="$ZIPDIR/system"
 
-ui_print(" ");
-ui_print(" Extracting System Files.. ");
-ui_print(" ");
-package_extract_dir("system", "/system");
-set_progress(0.300000);
+###############
+#             #
+#  FUNCTIONS  #
+#             #
+###############
 
-ui_print(" Executing scripts ");
-ui_print("  ");
-package_extract_dir("scripts", "/tmp");
-package_extract_dir("boot", "/tmp/boot");
-package_extract_dir("fpatcher", "/tmp/fpatcher");
-package_extract_file("build.prop", "/tmp/build.prop");
-package_extract_file("default.prop", "/tmp/default.prop");
-package_extract_file("power_profile.xml", "/tmp/power_profile.xml");
-set_perm(0, 0, 0755, "/tmp/main.sh");
-set_perm(0, 0, 0755, "/tmp/util_functions.sh");
-set_perm(0, 0, 0755, "/tmp/bin/zip");
-set_perm(0, 0, 0755, "/tmp/bin/boot");
-set_perm(0, 0, 0755, "/tmp/bin/busybox");
-set_perm(0, 0, 0755, "/tmp/build.prop");
-set_perm(0, 0, 0755, "/tmp/default.prop");
-set_perm(0, 0, 0777, "/system/build.prop");
-run_program("/tmp/main.sh");
-set_progress(0.500000);
+# Load utility fuctions
+. $SCRIPTSDIR/util_functions.sh
 
-ui_print("  ");
-ui_print(" Executing Done!");
-ui_print("  ");
-set_progress(0.700000);
+################
+#              #
+# SCRIPT START #
+#              #
+################
+umask 022
 
-# when script got aborted, without this, it will bootloop
-set_perm(0, 0, 0755, "/system/build.prop");
+ui_print " - Mounting /system "
 
-ui_print(" Unmounting System ");
-ui_print("  ");
-run_program("/sbin/busybox", "umount", "/system");
-set_progress(0.900000);
-set_progress(1.000000);
+mount_system
 
-ui_print(" Done! ");
-ui_print("  ");
+ui_print " - Extracting system files.. "
 
+cp -r $SYSTEMDIR/. /system
+
+. $SCRIPTSDIR/main.sh "$ZIPDIR"
+
+ui_print " - Unmounting /system "
+
+ui_print " - Done! "
+
+ui_print "  "
+ui_print "***********************************"
+ui_print "*          Auto Port ZIP          *"
+ui_print "***********************************"
+ui_print "*   All Work Done Successfully!   *"
+ui_print "***********************************"
+ui_print "  "

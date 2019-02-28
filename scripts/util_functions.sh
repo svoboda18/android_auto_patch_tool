@@ -95,8 +95,8 @@ find_block() {
 }
 
 ui_print() {
-   # Sleep for 0.7 then print in gui.
-   sleep 0.7
+   # sleep for 0.2 then print in gui
+   sleep 0.3
    echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD
 }
 
@@ -159,17 +159,10 @@ get_flags() {
   fi
 }
 
-setup_bb() {
-   # Make sure this path is in the front, and install bbx
-   echo $PATH | grep -q "^$TMPDIR/bin" || export PATH=$TMPDIR/bin:$PATH
-   $TMPDIR/bin/busybox --install -s $TMPDIR/bin
-}
-
 setup_flashable() {
   # Required for ui_print to work correctly
   # Preserve environment varibles
   OLD_PATH=$PATH
-  setup_bb
   if [ -z $OUTFD ] || readlink /proc/$$/fd/$OUTFD | grep -q /tmp; then
     # We will have to manually find out OUTFD
     for FD in `ls /proc/$$/fd`; do
@@ -201,9 +194,12 @@ find_boot_image() {
 convert_boot_image() {
    # Convert to a raw boot.img, it required for devices with kitkat kernel and lower
    busybox dd if="$BOOTIMAGE" of="$TMPDIR/rawbootimage.img"
-   [ -f /tmp/rawbootimage.img ] && BOOTIMAGEFILE="$TMPDIR/rawbootimage.img" && ui_print "   * Boot partition converted to rawbootimage.img" || ex "  ! Unable to convert boot image!"
+   [ -f $TMPDIR/rawbootimage.img ] && BOOTIMAGEFILE="$TMPDIR/rawbootimage.img" && ui_print "   * Boot partition converted to rawbootimage.img" || ex "  ! Unable to convert boot image!"
 }
 
 flash_image() {
    busybox dd if=$1 of=$2 && ui_print "   * Sucessfuly flashed $1" || ex "   ! Unable to flash $1!"
 }
+
+# need to call it, thats all functions will work
+setup_flashable

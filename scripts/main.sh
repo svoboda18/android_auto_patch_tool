@@ -23,11 +23,12 @@
 #             #
 ###############
 
-ver=1.0
+VER=1.0
 ROOTDIR=/
-TMPDIR=/tmp
-PATCHDIR="$TMPDIR/fpatcher"
+TMPDIR="$1"
+PATCHDIR="$TMPDIR/fwpatcher"
 BOOTDIR="$TMPDIR/boot"
+SCRIPTSDIR="$TMPDIR/scripts"
 systemprop=/system/build.prop
 bootprop="$TMPDIR/boot/default.prop"
 buildprop="$TMPDIR/build.prop"
@@ -40,16 +41,13 @@ defaultprop="$TMPDIR/default.prop"
 ###############
 
 # Load utility functions
-cd $TMPDIR
+cd $SCRIPTSDIR
 . ./util_functions.sh
 cd $ROOTDIR
 
 clean_all() {
-  # Clean /tmp
-  busybox rm -rf "$TMPDIR/*.img"
-  busybox rm -rf "$TMPDIR/*.prop"
-  busybox rm -rf "$TMPDIR/boot"
-  busybox rm -rf "$TMPDIR/*.sh"
+  # Clean $TMPDIR
+  busybox rm -rf $TMPDIR
 }
 
 fix_permissions() {
@@ -197,7 +195,7 @@ fix_permissions() {
 }
 
 change_power() {
-FW=null
+FW=
 # Set some flags depending on what copied over
 if [ -f $TMPDIR/power_profile.xml ]; then
   framework=1
@@ -272,15 +270,15 @@ build="$2"
 answer=$(busybox sed "s/BACKUP=//p;d" "$tweak")
 case "$answer" in
         y|Y|yes|Yes|YES)
-	    # Call backup function for system prop.
-	    backup "$systemprop" ;;
+	    # Call backup function only for system prop.
+	    if [ $build == "$systemprop" ]; then
+	    backup "$systemprop" 
+        fi ;;
 	
         n|N|no|No|NO) ;;
         # Nothing
         
-        *)
-	    # Check if empty or invalid
-	    [[ -z "$answer" || ! -d $(dirname "$answer") ]] && log "Given path is empty or parent directory does not exist" || backup "$answer" ;;
+        *) busybox grep "BACKUP=" "$tweak" || ex " ! Invalid $tweak format!" ; log " ! Did you read the README.MD?!" ;;
 esac
 sleep 2
 
@@ -326,21 +324,13 @@ do
 		if busybox grep -q "$var" "$build"
 		then
 			# Override value in $build if different
-			if [ "$var" == "ro.build.fingerprint" ]; then
-			fp=$(grep_prop "ro.build.fingerprint")
-			fvar=$(busybox cat "$tweak" | busybox grep "ro.build.fingerprint=" | busybox dd bs=1 skip=21)
-			[ "$fp" != "$fvar" ] && busybox sed -i "s@ro.build.fingerprint=$fp@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
-			elif [ "$var" == "ro.build.description" ]; then
-			dc=$(grep_prop "ro.build.description")
-			dvar=$(busybox cat "$tweak" | busybox grep "ro.build.description=" | busybox dd bs=1 skip=21)
-			[ "$dc" != "$dvar" ] && busybox sed -i "s@ro.build.description=$dc@$line@" "$build" && ui_print "   * Value of \"$var\" overridden"
-			else
-			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s/^$var=.*$/$line/" -i "$build" && ui_print "   * Value of \"$var\" overridden")
-			fi
+			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s@^$var=.*@$line@" -i "$build" && ui_print "   * Value of \"$var\" overridden")
 		# Else append entry to $build
 		else
 			busybox echo "$line" >> "$build" && ui_print "   * Entry \"$line\" added"
 		fi
+		# log when there no changes made (ideas better then this way are welcome)
+		ui_print "   * Nothing to change for $var"
 	fi
 done
 
@@ -356,18 +346,21 @@ mv ramdisk.cpio $BOOTDIR/ramdisk.cpio
 cd $BOOTDIR
 
 # Check if default.prop found, add it if not then append.
-ui_print "  - Adding Default.prop changes..."
+[ -f "$defaultprop" ] && {
 if [ -f default.prop ]; then
+    ui_print "  - Adding default.prop with changes..."
     chmod 777 default.prop
     prop_append "$defaultprop" "$bootprop"
 elif [ ! -f default.prop ]; then
+    ui_print "  - Changing default.prop values.."
     boot --cpio ramdisk.cpio \
     "extract default.prop default.prop"
     chmod 777 default.prop
     prop_append "$defaultprop" "$bootprop"
 fi
+} || ui_print "  ! Skipping default.prop changes!"
 
-# Start making a script to add all .rc at once, required since it will bootloop without it.
+# Start making a script to add all .rc at once, required since it will bootloop if we adf then one by one.
 busybox echo "boot --cpio ramdisk.cpio \\" >> $script
 
 # Check if folder is empty from .rc/.sh files or not
@@ -458,17 +451,14 @@ cd $ROOTDIR
 #              #
 ################
 
-setup_flashable
-
-ui_print " - Main Script Started, Current Version: $ver"
-
-mount_system
+log "Main Script Started, Current Version: $VER"
 
 get_flags
 
-ui_print " - Adding Build.prop changes..."
-
+[ -f "$buildprop" ] && {
+ui_print " - Adding build.prop changes..."
 prop_append "$buildprop" "$systemprop"
+} || ui_print " ! Skipping build.prop changes!"
 
 ui_print " - Porting Boot.img started:"
 
@@ -485,5 +475,3 @@ ui_print " - Fixing /system permissions"
 fix_permissions
 
 clean_all
-
-ui_print " - Main Script Ended.."
