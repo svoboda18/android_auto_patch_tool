@@ -12,17 +12,14 @@ Also, It Will Let You Know How To Use This Zip Correctly, In Results You Port Th
 - **Current Stable Version:** V1.0 (First Stable)
 - **Current Features:**
    * Automaticly Port Boot.img With:
-      - Change/Replace .rc Files
-      - Append/Change default.prop Lines.
-      - Patch Remove DM-Verity / Force Encrypt.
-   * Patch framework-res.apk With power_profile.xml. (Stock Of The Device)
+      - Change/Replace .rc Files (OPTIMAL)
+      - Append/Change default.prop Lines. (OPTIMAL)
+      - Patch Remove DM-Verity / Force Encrypt If Found.
+   * Patch framework-res.apk With power_profile.xml. (Stock Of The Device) (OPTIMAL)
       - With Undo Flashable Patch (in cases it get rejected by fw/device stays in boot-animation loop)
         Thats Will Be Located at: /sdcard/fpatcherundo/UndoFwPatch.zip
-   * Replace Libs On System.
-   * Append/Chnage build.prop Lines.
-- **Next Features:** (TODO)
-   * Multip SDK Support.
-   * More !
+   * Advancedly Replace Files On System.
+   * Append/Chnage build.prop Lines. (OPTIMAL)
 
 # Usage Info:
 

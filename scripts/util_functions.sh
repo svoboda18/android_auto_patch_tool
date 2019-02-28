@@ -6,6 +6,28 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
+# Util Functions Script v1 by svoboda18
+#
+# Usage:
+# . ./util_functions.sh
+#
+# Intro:
+#
+# This script has a lot of functions used by almost all scripts on this tool, such as:
+#  setup_flashable: prepares some VARS needed by other functions
+#  ui_print: shows ui logs
+#  log: store logs in <recovery.log>
+#  ex: show a ui error log
+#  get_flags: detects the values of KEEP** for current device
+#  find_block: finding device blocks
+#  mount_system: it mounts /system in rw mode
+#  find_boot_image: it seach for boot partitons in different ways
+#  convet_boot_image: converts boots partitions to a raw image
+#  flash_image: flash $1 image at $2 partiton (location)
+#  ....: ...
+#
+# Warning:
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the

@@ -1,5 +1,4 @@
 #!/sbin/sh
-
 #
 # Copyright (C) 2019 by SaMad SegMane (svoboda18)
 #
@@ -7,6 +6,32 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
+#
+# Main Script v1 by svoboda18
+#
+# Usage:
+# ./main.sh <tmp_dir>
+#
+# <tmp_dir> : locations to folder contains
+#                   <scripts> , <boot> folders
+#                   <build.prop>, <default.prop> , <power_profile.xml> files (optimal)
+#
+# Intro:
+#
+# This script uses <util_functions.sh> to do:
+#  add build.prop changes based on <build.prop> if it exists.
+#  finding boot partitons.
+#  convert it to a raw image.
+#  unpack boot.img.
+#  replaces kernel.
+#  add default.prop chages based on <default.prop> if it exists.
+#  add .rc/other files  <boot> folder if they exists.
+#  repack the boot.img
+#  flash the new_boot.img
+#  patch frameworks_res.apk with <power_profile> if it exists.
+#  fix permissions in /system
+#
+# Warning:
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -191,7 +216,7 @@ fix_permissions() {
    busybox chown -R 0.2000 /system/photoreader/*
    find /system/photoreader/ \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
    fi
-   ui_print "   * Fixed all permissions in /system"
+   ui_print "  * Fixed all permissions in /system"
 }
 
 change_power() {
@@ -202,7 +227,7 @@ if [ -f $TMPDIR/power_profile.xml ]; then
   busybox mkdir -p $PATCHDIR/system/framework/framework-res.apk/res/xml/
   busybox cp $TMPDIR/power_profile.xml $PATCHDIR/system/framework/framework-res.apk/res/xml/
 else
-  ui_print "   ! Nothing to patch, power_profile.xml not found!"
+  ui_print "  ! Nothing to patch, power_profile.xml not found!"
   framework=0
 fi
 
@@ -243,13 +268,13 @@ fi
 
 # Now to process the patches - /system/framework
 if [ "$framework" -eq "1" ]; then
-   ui_print "   - Adding power_profile.xml"
+   ui_print "  - Adding power_profile.xml"
   cd $PATCHDIR/apply/system/framework
   f=framework-res.apk
   log "Working on $f"
   cd $PATCHDIR/system/framework/$f/
   zip -rn .png:.arsc:.ogg:.jpg:.wav $PATCHDIR/apply/system/framework/$f * || ex "   ! Unable to patch ${f}!"
-  ui_print "   * Sucessfully patched ${f}"
+  ui_print "  * Sucessfully patched ${f}"
   log "Patched $f"
 fi
 
@@ -278,7 +303,7 @@ case "$answer" in
         n|N|no|No|NO) ;;
         # Nothing
         
-        *) busybox grep "BACKUP=" "$tweak" || ex " ! Invalid $tweak format!" ; log " ! Did you read the README.MD?!" ;;
+        *) busybox grep "BACKUP=" "$tweak" || ex "! Invalid $tweak format!" ; log " ! Did you read the README.MD?!" ;;
 esac
 sleep 2
 
@@ -300,7 +325,7 @@ do
 	then
 		entry=$(busybox echo "${line#?}" | busybox sed -e 's/[\/&]/\\&/g')
 		# Remove from $build if present
-		busybox grep -q "$entry" "$build" && (busybox sed "/$entry/d" -i "$build" && ui_print "   * All lines containing \"$entry\" removed")
+		busybox grep -q "$entry" "$build" && (busybox sed "@$entry@d" -i "$build" && ui_print "  * All lines containing \"$entry\" removed")
 	# Append string
 	elif busybox echo "$line" | busybox grep -q '^\@'
 	then
@@ -308,7 +333,7 @@ do
 		var=$(busybox echo "$entry" | cut -d\| -f1)
 		app=$(busybox echo "$entry" | cut -d\| -f2)
 		# Append string to $var's value if present in $build
-		busybox grep -q "$var" "$build" && (busybox sed "s/^$var=.*$/&$app/" -i "$build" && ui_print "   * \"$app\" Appended to value of \"$var\"")
+		busybox grep -q "$var" "$build" && (busybox sed "s@^$var=.*@&$app@" -i "$build" && ui_print "  * \"$app\" Appended to value of \"$var\"")
 	# Ahange value only if entry exists
 	elif busybox echo "$line" | busybox grep -q '^\$'
 	then
@@ -316,7 +341,7 @@ do
 		var=$(busybox echo "$entry" | cut -d\| -f1)
 		new=$(busybox echo "$entry" | cut -d\| -f2)
 		# Change $var's value if $var present in $build
-		busybox grep -q "$var=" "$build" && (busybox sed "s/^$var=.*$/$var=$new/" -i "$build" && ui_print "   * Value of \"$var\" changed to \"$new\"") 
+		busybox grep -q "$var=" "$build" && (busybox sed "s@^$var=.*@$var=$new@" -i "$build" && ui_print "  * Value of \"$var\" changed to \"$new\"") 
 	# Add or override entry
 	else
 		var=$(busybox echo "$line" | cut -d= -f1)
@@ -324,13 +349,13 @@ do
 		if busybox grep -q "$var" "$build"
 		then
 			# Override value in $build if different
-			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s@^$var=.*@$line@" -i "$build" && ui_print "   * Value of \"$var\" overridden")
+			busybox grep -q $(busybox grep "$var" "$tweak") "$build" || (busybox sed "s@^$var=.*@$line@" -i "$build" && ui_print "  * Value of \"$var\" overridden")
 		# Else append entry to $build
 		else
-			busybox echo "$line" >> "$build" && ui_print "   * Entry \"$line\" added"
+			busybox echo "$line" >> "$build" && ui_print "  * Entry \"$line\" added"
 		fi
 		# log when there no changes made (ideas better then this way are welcome)
-		ui_print "   * Nothing to change for $var"
+		ui_print "  * Nothing to change for $var"
 	fi
 done
 
@@ -358,17 +383,17 @@ elif [ ! -f default.prop ]; then
     chmod 777 default.prop
     prop_append "$defaultprop" "$bootprop"
 fi
-} || ui_print "  ! Skipping default.prop changes!"
+} || ui_print " ! Skipping default.prop changes!"
 
 # Start making a script to add all .rc at once, required since it will bootloop if we adf then one by one.
 busybox echo "boot --cpio ramdisk.cpio \\" >> $script
 
 # Check if folder is empty from .rc/.sh files or not
 if [[ "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"rc"* && "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"sh"* ]]; then
-   ui_print "  ! Boot folder empty, skipping .rc replaces"
+   ui_print " ! Boot folder empty, skipping .rc replaces"
    busybox echo "\"add 755 default.prop default.prop\" \\" >> $script
 else
-   ui_print "  - Adding rc files to boot.img:"
+   ui_print " - Adding rc files to boot.img:"
    for file in $(busybox ls)
          do
             if [[ $file == *"ramdisk.cpio"* ]]; then
@@ -378,14 +403,14 @@ else
                  # Nothing
                  log "Skipped $file"
             else
-                 ui_print "   * Adding ${file}"
+                 ui_print "  * Adding ${file}"
                  busybox echo "\"add 755 ${file} ${file}\" \\" >> $script
             fi
 done
 fi
 
 # Add dm-verity/forceencrypt patch line, then run script
-ui_print "   * Removing dm-verity,forceencryptition if found.."
+ui_print "  * Removing dm-verity,forceencryptition if found.."
 busybox echo "\"patch $KEEPVERITY $KEEPFORCEENCRYPT\"" >> $script
 chmod 755 $script
 . ./$script
@@ -405,24 +430,24 @@ cd $TMPDIR
 fix_some
 
 # Find boot.img partition from device blocks/fstab, this is the advanced way
-ui_print "  - Finding boot image partition"
+ui_print " - Finding boot image partition"
 find_boot_image
 
 # Support kitkat kernel & older. (boot part dont have img header)
-ui_print "  - Converting boot image"
+ui_print " - Converting boot image"
 convert_boot_image
 
 # Unpack boot from raw boot image (kitkat and older are suppprted)
-ui_print "  - Unpacking boot image"
+ui_print " - Unpacking boot image"
 boot --unpack $BOOTIMAGEFILE && ui_print "   * Boot unpacked to $TMPDIR" || ex "  ! Unable to unpack boot image!"
 
 # Check if zImage found. then replace kernel
 if [ -f $BOOTDIR/zImage ]; then
-    ui_print "  - Replacing Kernel.."
+    ui_print " - Replacing Kernel.."
     rm -f kernel
     mv $BOOTDIR/zImage kernel
 else
-    ex "  ! No zImage present in boot folder, aborting.."
+    ex " ! No zImage present in boot folder, aborting.."
 fi
 
 # Call ramdisk patch function
@@ -435,11 +460,11 @@ if ! $KEEPVERITY; then
 fi
 
 # Repack the boot.img as new-boot.img
-ui_print "  - Repacking boot image"
+ui_print " - Repacking boot image"
 boot --repack $BOOTIMAGEFILE && ui_print "   * Boot repacked to new-boot.img" || ex "  ! Unable to repack boot image!"
 
 # Flash the new boot.img
-ui_print "  - Flashing the new boot image"
+ui_print " - Flashing the new boot image"
 flash_image new-boot.img $BOOTIMAGE
 
 cd $ROOTDIR
@@ -456,21 +481,21 @@ log "Main Script Started, Current Version: $VER"
 get_flags
 
 [ -f "$buildprop" ] && {
-ui_print " - Adding build.prop changes..."
+ui_print "- Adding build.prop changes..."
 prop_append "$buildprop" "$systemprop"
-} || ui_print " ! Skipping build.prop changes!"
+} || ui_print "! Skipping build.prop changes!"
 
-ui_print " - Porting Boot.img started:"
+ui_print "- Porting Boot.img started:"
 
 fix_recovery
 port_boot
 unfix_recovery
 
-ui_print " - Patching power-profile to frameworks-res:"
+ui_print "- Patching power-profile to frameworks-res:"
 
 change_power
 
-ui_print " - Fixing /system permissions"
+ui_print "- Fixing /system permissions"
 
 fix_permissions
 

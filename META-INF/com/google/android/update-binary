@@ -6,6 +6,19 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
+# Updater Binary Script v1 by svoboda18
+#
+# Usage:
+# add it to ur META-INF
+#
+# Intro:
+#
+# This script do:
+#  creat busybox for current $ARCH from the var-based code
+#  extract the auto port zip to $INSTALLER
+#  strat the <updater-script> with $@
+#
+# Warning:
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -93,7 +106,7 @@ ui_printf "*        Made by svoboda18        *"
 ui_printf "***********************************"
 ui_printf "  "
 
-ui_printf " - Preparing Environments.. "
+ui_printf "- Preparing Environments.. "
 
 case "$1" in
   "extract")
