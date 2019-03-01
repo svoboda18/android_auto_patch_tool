@@ -7,7 +7,7 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Main Script v1 by svoboda18
+# Main Script v1.5 by svoboda18
 #
 # Usage:
 # ./main.sh <tmp_dir>
@@ -48,7 +48,7 @@
 #             #
 ###############
 
-VER=1.0
+VER=1.5
 ROOTDIR=/
 TMPDIR="$1"
 PATCHDIR="$TMPDIR/fwpatcher"

@@ -6,7 +6,7 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Util Functions Script v1 by svoboda18
+# Util Functions Script v1.5 by svoboda18
 #
 # Usage:
 # . ./util_functions.sh
