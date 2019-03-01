@@ -49,8 +49,8 @@ Let's talk about the changes/zip folders/files you must do/have to:
 So now, add your required changes & go flash !
 
 # Acknowledgement:
-| -------   | -------|
-| topjohnwu | magiskboot tool and some functions |
-| kl3 | prop_append function |
+| topjohnwu | magiskboot tool and some other functions|
+|:---------:|-------------------------------------------|
+| kl3       | for great prop_append() |
 
 ## See you in newer versions!
