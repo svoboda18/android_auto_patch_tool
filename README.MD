@@ -7,7 +7,7 @@ Auto Patch Tool
 Read This Carefuly, It Will Help You Bypass Mistaks.
 Also, It Will Let You Know How To Use This Zip Correctly, In Results Your Patch Will Work Sucessfully.
 
-# Info
+# Info's:
 - **Current Version:** V1.5 (BETA)
 - **Current Stable Version:** V1.0 (First Stable)
 - **Current Features:**
@@ -22,7 +22,7 @@ Also, It Will Let You Know How To Use This Zip Correctly, In Results Your Patch 
    * Advancedly Replace Files On System. (OPTIMAL)
    * Append/Chnage build.prop Lines. (OPTIMAL)
 
-# Usage Info:
+# Usage Guide:
 
  **Flash Method:**
 This zip, can patch a rom, you must follow this to get it work:
@@ -48,8 +48,7 @@ Let's talk about the changes/zip folders/files you must do/have to:
 
 So now, add your required changes & go flash !
 
-# Thanks
-| Thanks To | For |
+# Acknowledgement:
 | -------   | -------|
 | topjohnwu | magiskboot tool and some functions |
 | kl3 | prop_append function |

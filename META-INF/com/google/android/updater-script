@@ -63,7 +63,10 @@ mount_system
 
 ui_print "- Extracting system files.. "
 
+# Check if $SYSTEMDIR, and not empty then replace /system files
+if [ -d "$SYSTEMDIR" ] && [ ! -z "$(ls $SYSTEMDIR | sed "s/.gitkeep//")" ]; then
 cp -r $SYSTEMDIR/. /system
+fi
 
 . $SCRIPTSDIR/main.sh "$ZIPDIR"
 
