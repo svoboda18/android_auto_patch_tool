@@ -99,7 +99,7 @@ setup_bb() {
 
 ui_printf "  "
 ui_printf "***********************************"
-ui_printf "*         Auto Port ZIP           *"
+ui_printf "*        Auto Patch Tool          *"
 ui_printf "***********************************"
 ui_printf "*     Current Version: 1.5        *"
 ui_printf "*        Made by svoboda18        *"

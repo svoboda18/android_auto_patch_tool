@@ -73,7 +73,7 @@ ui_print "- Done! "
 
 ui_print "  "
 ui_print "***********************************"
-ui_print "*          Auto Port ZIP          *"
+ui_print "*         Auto Patch Tool         *"
 ui_print "***********************************"
 ui_print "*   All Work Done Successfully!   *"
 ui_print "***********************************"
