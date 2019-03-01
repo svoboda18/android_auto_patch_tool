@@ -447,7 +447,7 @@ if [ -f $BOOTDIR/zImage ]; then
     rm -f kernel
     mv $BOOTDIR/zImage kernel
 else
-    ex " ! No zImage present in boot folder, aborting.."
+    ui_print " ! No zImage present in boot folder, skipping.."
 fi
 
 # Call ramdisk patch function
