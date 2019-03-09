@@ -14,6 +14,7 @@
 # Intro:
 #
 # This script has a lot of functions used by almost all scripts on this tool, such as:
+#  loads the configurations infos from config.prop
 #  setup_flashable: prepares some VARS needed by other functions
 #  ui_print: shows ui logs
 #  log: store logs in <recovery.log>
@@ -36,6 +37,28 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses
 #
+
+# read the config before doing any thing
+CONFIGFILE="$ZIPDIR/config.prop"
+set -e
+
+# Trim any lines starts with "#"
+sed '/^#/d' -i "$CONFIGFILE"
+
+# Start reading
+echo "- Reading config file.."
+# Only read valid lines thats are in .prop format
+sed -r '/(^#|^.* = .*|^.*=.* .*|^.* .*=.*)/d;/(.*=.*)/!d' "$CONFIGFILE" | while read CONFIG
+do
+# slpit line into $VAR and it is VALUE
+VAR=$(echo "$CONFIG" | cut -d= -f1)
+VARVALUE=$(sed "s/$VAR=//p;d" "$CONFIGFILE")
+
+# Export value (external scripts can use it)
+export $VAR="$VARVALUE"
+echo "  * "$VAR="$VARVALUE"
+done
+echo "- Reading config file done!."
 
 ###############
 #             #

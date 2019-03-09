@@ -47,7 +47,6 @@
 #  VARIABLES  #
 #             #
 ###############
-
 VER=1.5
 ROOTDIR=/
 TMPDIR="$1"
@@ -55,6 +54,8 @@ PATCHDIR="$TMPDIR/fwpatcher"
 BOOTDIR="$TMPDIR/boot"
 SCRIPTSDIR="$TMPDIR/scripts"
 systemprop=/system/build.prop
+vendorprop=/vendor/build.prop
+vendordefault=/vendor/default.prop
 bootprop="$TMPDIR/boot/default.prop"
 buildprop="$TMPDIR/build.prop"
 defaultprop="$TMPDIR/default.prop"
@@ -216,7 +217,7 @@ fix_permissions() {
    busybox chown -R 0.2000 /system/photoreader/*
    find /system/photoreader/ \( -type d -exec busybox chmod 755 {} + \) -o \( -type f -exec busybox chmod 644 {} + \)
    fi
-   ui_print "  * Fixed all permissions in /system"
+   ui_print " * Fixed all permissions in /system"
 }
 
 change_power() {
@@ -253,7 +254,7 @@ fi
 # Ok, before doing much else, we should zip up and move the
 # flashable backup somewhere and name it something
 if [ "$framework" -eq "1" ]; then
-  ui_print "  - Backuping $f"
+  ui_print " - Backuping $f"
   log "Preparing backup flashable zip"
   if [ -d /sdcard/fwpatchundo ]; then
     log "Deleting old undo zip"
@@ -268,13 +269,13 @@ fi
 
 # Now to process the patches - /system/framework
 if [ "$framework" -eq "1" ]; then
-   ui_print "  - Adding power_profile.xml"
+   ui_print " - Adding power_profile.xml"
   cd $PATCHDIR/apply/system/framework
   f=framework-res.apk
   log "Working on $f"
   cd $PATCHDIR/system/framework/$f/
   zip -rn .png:.arsc:.ogg:.jpg:.wav $PATCHDIR/apply/system/framework/$f * || ex "   ! Unable to patch ${f}!"
-  ui_print "  * Sucessfully patched ${f}"
+  ui_print " * Sucessfully patched ${f}"
   log "Patched $f"
 fi
 
@@ -370,6 +371,11 @@ script=patch.sh
 mv ramdisk.cpio $BOOTDIR/ramdisk.cpio
 cd $BOOTDIR
 
+# Check if we use vendor or boot default.prop?
+$USE_VENDOR_PROPS && { 
+ui_print " - Adding vendor default.prop changes..."
+prop_append "$defaultprop" "$vendordefault"
+} || {
 # Check if default.prop found, add it if not then append.
 [ -f "$defaultprop" ] && {
 if [ -f default.prop ]; then
@@ -384,6 +390,7 @@ elif [ ! -f default.prop ]; then
     prop_append "$defaultprop" "$bootprop"
 fi
 } || ui_print " ! Skipping default.prop changes!"
+}
 
 # Start making a script to add all .rc at once, required since it will bootloop if we adf then one by one.
 busybox echo "boot --cpio ramdisk.cpio \\" >> $script
@@ -391,7 +398,7 @@ busybox echo "boot --cpio ramdisk.cpio \\" >> $script
 # Check if folder is empty from .rc/.sh files or not
 if [[ "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"rc"* && "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"sh"* ]]; then
    ui_print " ! Boot folder empty, skipping .rc replaces"
-   busybox echo "\"add 755 default.prop default.prop\" \\" >> $script
+   $USE_VENDOR_PROPS || busybox echo "\"add 755 default.prop default.prop\" \\" >> $script
 else
    ui_print " - Adding rc files to boot.img:"
    for file in $(busybox ls)
@@ -480,10 +487,15 @@ log "Main Script Started, Current Version: $VER"
 
 get_flags
 
+$USE_VENDOR_PROPS && { 
+ui_print "- Adding vendor build.prop changes..."
+prop_append "$buildprop" "$vendorprop"
+} || {
 [ -f "$buildprop" ] && {
 ui_print "- Adding build.prop changes..."
 prop_append "$buildprop" "$systemprop"
 } || ui_print "! Skipping build.prop changes!"
+}
 
 ui_print "- Porting Boot.img started:"
 
@@ -495,8 +507,9 @@ ui_print "- Patching power-profile to frameworks-res:"
 
 change_power
 
+$DONT_FIX_PERMISSIONS && {
 ui_print "- Fixing /system permissions"
-
 fix_permissions
+} || ui_print "! No permissions fixing!"
 
 clean_all

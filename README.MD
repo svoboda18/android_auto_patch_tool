@@ -34,6 +34,7 @@ This zip, can patch a rom, you must follow this to get it work:
 
  **Files/Folders Usage:**
 Let's talk about the changes/zip folders/files you must do/have to:
+- config.prop, contines some settable lines to configure the tool, thats it matches the patch target.
 - defualt.prop, contians lines to be added/changed in boot's image default.prop.
   * Some lines can make bootloop like "ro.kernel.qemu=1" , so be careful!.
   * Dont add use-less lines, it will make things bad.
