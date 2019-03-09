@@ -40,6 +40,7 @@ ZIPDIR="$INSTALLER"
 SCRIPTSDIR="$ZIPDIR/scripts"
 BOOTDIR="$ZIPDIR/boot"
 SYSTEMDIR="$ZIPDIR/system"
+VENDORDIR="$ZIPDIR/vendor"
 
 ###############
 #             #
@@ -57,20 +58,30 @@ SYSTEMDIR="$ZIPDIR/system"
 ################
 umask 022
 
-ui_print "- Mounting /system "
+ui_print "- Mounting /system , /vendor"
 
-mount_system
+mount_parts
 
 ui_print "- Extracting system files.. "
 
 # Check if $SYSTEMDIR, and not empty then replace /system files
 if [ -d "$SYSTEMDIR" ] && [ ! -z "$(ls $SYSTEMDIR | sed "s/.gitkeep//")" ]; then
-cp -r $SYSTEMDIR/. /system
+cp -r $SYSTEMDIR/. /system || ex "! Couldn't extract system files!"
+fi
+
+if is_mounted /vendor; then
+ui_print "- Extracting vendor files.. "
+
+# Check if $VENDORDIR, and not empty then replace /system files
+if [ -d "$VENDORDIR" ] && [ ! -z "$(ls $VENDORDIR | sed "s/.gitkeep//")" ]; then
+cp -r $VENDORDIR/. /vendor || ex "! Couldn't extract vendor files!"
+fi
 fi
 
 . $SCRIPTSDIR/main.sh "$ZIPDIR"
 
-ui_print "- Unmounting /system "
+ui_print "- Unmounting /system , /vendor "
+unmount_parts
 
 ui_print "- Done! "
 

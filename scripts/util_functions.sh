@@ -117,9 +117,9 @@ find_block() {
 }
 
 ui_print() {
-   # sleep for 0.2 then print in gui
-   sleep 0.3
+   # dynamicly print in gui
    echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD
+   sleep 0.1
 }
 
 log() {
@@ -139,22 +139,29 @@ backup() {
    [ -f "${1}.bak" ] && backup=$1.`date +%d-%b-%H-%M`.bak && busybox cp -f "$1" "$backup" || busybox cp -f "$1" "${1}.bak"
 }
 
-mount_system() {
-   # Mount system as rw
-  log "- Mounting /system"
-  [ -f /system/build.prop ] || is_mounted /system || mount -o rw /system 2>/dev/null
-  if ! is_mounted /system && ! [ -f /system/build.prop ]; then
-    SYSTEMBLOCK=`find_block system$SLOT`
-    mount -t ext4 -o rw $SYSTEMBLOCK /system
+mount_parts() {
+for PART in system vendor 
+do
+  # Mount system as rw
+  log "- Mounting /$PART"
+  [ -f /$PART/build.prop ] || is_mounted /$PART || mount -o rw /$PART 2>/dev/null
+  if ! is_mounted /$PART && ! [ -f /$PART/build.prop ]; then
+    PARTBLOCK=`find_block $PART$SLOT`
+    mount -t ext4 -o rw $PARTBLOCK /$PART
   fi
-  [ -f /system/build.prop ] || is_mounted /system || ex "   ! Cannot mount /system"
-  grep -qE '/dev/root|/system_root' /proc/mounts && SYSTEM_ROOT=true || SYSTEM_ROOT=false
-  if [ -f /system/init ]; then
-    SYSTEM_ROOT=true
-    mkdir /system_root 2>/dev/null
-    mount --move /system /system_root
-    mount -o bind /system_root/system /system
+  [ -f /$PART/build.prop ] || is_mounted /$PART || ex "! Cannot mount /$PART"
+done
+}
+
+unmount_parts() {
+for PART in system vendor dev/random 
+do
+  # Unmount $PART
+  log "- Unmounting /$PART"
+  if ! is_mounted /$PART; then
+    umount -l /$PART 2>/dev/null
   fi
+done
 }
 
 get_flags() {
@@ -220,7 +227,7 @@ convert_boot_image() {
 }
 
 flash_image() {
-   busybox dd if=$1 of=$2 && ui_print "   * Sucessfuly flashed $1" || ex "   ! Unable to flash $1!"
+   busybox dd if="$1" of="$2" && ui_print "   * Sucessfuly flashed $1" || ex "   ! Unable to flash $1!"
 }
 
 # need to call it, thats all functions will work

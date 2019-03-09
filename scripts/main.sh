@@ -13,7 +13,7 @@
 # ./main.sh <tmp_dir>
 #
 # <tmp_dir> : locations to folder contains
-#                   <scripts> , <boot> folders
+#                   <scripts> (required) , <boot> (optimal) folders
 #                   <build.prop>, <default.prop> , <power_profile.xml> files (optimal)
 #
 # Intro:
@@ -253,7 +253,7 @@ fi
 # Ok, before doing much else, we should zip up and move the
 # flashable backup somewhere and name it something
 if [ "$framework" -eq "1" ]; then
-  ui_print "   - Backuping $f"
+  ui_print "  - Backuping $f"
   log "Preparing backup flashable zip"
   if [ -d /sdcard/fwpatchundo ]; then
     log "Deleting old undo zip"
@@ -373,11 +373,11 @@ cd $BOOTDIR
 # Check if default.prop found, add it if not then append.
 [ -f "$defaultprop" ] && {
 if [ -f default.prop ]; then
-    ui_print "  - Adding default.prop with changes..."
+    ui_print " - Adding default.prop with changes..."
     chmod 777 default.prop
     prop_append "$defaultprop" "$bootprop"
 elif [ ! -f default.prop ]; then
-    ui_print "  - Changing default.prop values.."
+    ui_print " - Changing default.prop values.."
     boot --cpio ramdisk.cpio \
     "extract default.prop default.prop"
     chmod 777 default.prop

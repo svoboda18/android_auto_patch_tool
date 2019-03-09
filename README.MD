@@ -19,7 +19,8 @@ Also, It Will Let You Know How To Use This Zip Correctly, In Results Your Patch 
    * Patch framework-res.apk With power_profile.xml. (Stock Of The Device) (OPTIMAL)
       - With Undo Flashable Patch (in cases it get rejected by fw/device stays in boot-animation loop)
         Thats Will Be Located at: /sdcard/fpatcherundo/UndoFwPatch.zip
-   * Advancedly Replace Files On System. (OPTIMAL)
+   * Advancedly Replace Files On /system. (OPTIMAL)
+   * Advancedly Replace Files On /vendor. (OPTIMAL)
    * Append/Chnage build.prop Lines. (OPTIMAL)
 
 # Usage Guide:
@@ -44,6 +45,7 @@ Let's talk about the changes/zip folders/files you must do/have to:
 - In boot folder, there files to be added/replaced to boot.img, kernel must be placed there with zImage as name.
   * If you add defualt.prop in boot folder, make sure it correct.
 - In system folder, there files to be replaced/changed in /system partition.
+- In vendor folder, there files to be replaced/changed in /vendor partition.
   * Dont touch scripts folder /or/ META-INF, do it at your own risk.
 
 So now, add your required changes & go flash !
