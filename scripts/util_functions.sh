@@ -38,28 +38,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses
 #
 
-# read the config before doing any thing
-CONFIGFILE="$ZIPDIR/config.prop"
-set -e
-
-# Trim any lines starts with "#"
-sed '/^#/d' -i "$CONFIGFILE"
-
-# Start reading
-echo "- Reading config file.."
-# Only read valid lines thats are in .prop format
-sed -r '/(^#|^.* = .*|^.*=.* .*|^.* .*=.*)/d;/(.*=.*)/!d' "$CONFIGFILE" | while read CONFIG
-do
-# slpit line into $VAR and it is VALUE
-VAR=$(echo "$CONFIG" | cut -d= -f1)
-VARVALUE=$(sed "s/$VAR=//p;d" "$CONFIGFILE")
-
-# Export value (external scripts can use it)
-export $VAR="$VARVALUE"
-echo "  * "$VAR="$VARVALUE"
-done
-echo "- Reading config file done!."
-
 ###############
 #             #
 #  FUNCTIONS  #
@@ -87,23 +65,6 @@ grep_cmdline() {
 is_mounted() {
   cat /proc/mounts | grep -q " `readlink -f $1` " 2>/dev/null
   return $?
-}
-
-fix_recovery() {
-  mount -o bind /dev/urandom /dev/random
-  # Temporarily block out all custom recovery binaries/libs
-  mv /sbin /sbin_tmp
-  # Unset library paths
-  OLD_LD_LIB=$LD_LIBRARY_PATH
-  OLD_LD_PRE=$LD_PRELOAD
-  unset LD_LIBRARY_PATH
-  unset LD_PRELOAD
-}
-
-unfix_recovery() {
-  mv /sbin_tmp /sbin 2>/dev/null
-  [ -z $OLD_LD_LIB ] || export LD_LIBRARY_PATH=$OLD_LD_LIB
-  [ -z $OLD_LD_PRE ] || export LD_PRELOAD=$OLD_LD_PRE
 }
 
 fix_some() {
@@ -139,20 +100,20 @@ find_block() {
   return 1
 }
 
-ui_print() {
-   # dynamicly print in gui
-   echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD
-   sleep 0.1
+log() {
+   echo -n -e "$@\n" >> $LOG_FILE
 }
 
-log() {
-   echo -n -e "$@\n"
+ui_print() {
+   # dynamicly print in gui
+   log "$@"
+   [ ! -z $OUTFD ] && echo -e "ui_print $1\n\nui_print" >> /proc/self/fd/$OUTFD || echo "$@"
+   sleep 0.1
 }
 
 ex() {
    ui_print "$@"
-   fix_permissions
-   unfix_recovery
+   [ ! $DONT_FIX_PERMISSIONS ] && fix_permissions
    clean_all
    exit 1
 }
@@ -160,6 +121,33 @@ ex() {
 backup() {
    # Keep any old backup then backup.
    [ -f "${1}.bak" ] && backup=$1.`date +%d-%b-%H-%M`.bak && busybox cp -f "$1" "$backup" || busybox cp -f "$1" "${1}.bak"
+}
+
+load_config() {
+CONFIGFILE="$ZIPDIR/config.prop"
+set -a 
+
+# Trim any lines starts with "#"
+sed '/^#/d' -i "$CONFIGFILE"
+
+# Start reading
+log "- Reading config file.."
+
+# Only read valid lines thats are in .prop format
+sed -r '/(^#|^.* = .*|^.*=.* .*|^.* .*=.*)/d;/(.*=.*)/!d' "$CONFIGFILE" | while read CONFIG
+do
+# slpit line into $VAR and it is $VALUE
+local VAR=$(echo "$CONFIG" | cut -d= -f1)
+local VALUE=$(echo "$CONFIG" | cut -d= -f2)
+
+# print the read line
+log "  * \"$VAR\"=\"$VALUE\""
+done
+
+# apply the read vars
+. $CONFIGFILE
+
+set +a
 }
 
 mount_parts() {
@@ -252,6 +240,8 @@ convert_boot_image() {
 flash_image() {
    busybox dd if="$1" of="$2" && ui_print "   * Sucessfuly flashed $1" || ex "   ! Unable to flash $1!"
 }
+
+export PATH=$PATH:$ZIPDIR/scripts/bin
 
 # need to call it, thats all functions will work
 setup_flashable

@@ -22,5 +22,5 @@ persist.service.debuggable=1
 persist.sys.usb.config=mtp,adb
 persist.logd.logpersistd=logcatd
 
-# Add Your Lines Here
+# Add your lines here
 ro.sf.lcd_density=320

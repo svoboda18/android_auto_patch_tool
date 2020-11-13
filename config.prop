@@ -30,6 +30,6 @@
 #
 
 USE_VENDOR_PROPS=true
-DONT_FIX_PERMISSIONS=false
+DONT_FIX_PERMISSIONS=true
 
-# End of file
+# END OF FILE

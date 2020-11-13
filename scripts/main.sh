@@ -48,17 +48,22 @@
 #             #
 ###############
 VER=1.5
-ROOTDIR=/
+ROOTDIR="/" 
 TMPDIR="$1"
 PATCHDIR="$TMPDIR/fwpatcher"
 BOOTDIR="$TMPDIR/boot"
 SCRIPTSDIR="$TMPDIR/scripts"
-systemprop=/system/build.prop
-vendorprop=/vendor/build.prop
-vendordefault=/vendor/default.prop
+systemprop="/system/build.prop" 
+vendorprop="/vendor/build.prop"
+vendordefault="/vendor/default.prop"
 bootprop="$TMPDIR/boot/default.prop"
 buildprop="$TMPDIR/build.prop"
 defaultprop="$TMPDIR/default.prop"
+
+LOG_FILE="/sdcard/apt_logfile_$(date +'%d-%m-%y-%H:%M')"
+
+# Only if not used by a flashable zip
+[ -z $ZIPDIR ] && ZIPDIR="$TMPDIR" 
 
 ###############
 #             #
@@ -82,6 +87,7 @@ fix_permissions() {
 
    # fix permissions for all in /system
    sleep 0.5
+
    # /system
    log "fixing permissions for /system"
    busybox chown 0.0 /system
@@ -221,7 +227,8 @@ fix_permissions() {
 }
 
 change_power() {
-FW=
+local FW=""
+
 # Set some flags depending on what copied over
 if [ -f $TMPDIR/power_profile.xml ]; then
   framework=1
@@ -256,20 +263,20 @@ fi
 if [ "$framework" -eq "1" ]; then
   ui_print " - Backuping $f"
   log "Preparing backup flashable zip"
-  if [ -d /sdcard/fwpatchundo ]; then
+  if [ -d /sdcard/apt_fwpatchundo ]; then
     log "Deleting old undo zip"
-    busybox rm -rf /sdcard/fwpatchundo
+    busybox rm -rf /sdcard/apt_fwpatchundo
   fi
-  busybox mkdir -p /sdcard/fwpatchundo
+  busybox mkdir -p /sdcard/apt_fwpatchundo
   cd $PATCHDIR/apply/
-  zip -r -4 /sdcard/fwpatchundo/UndoFwPatch.zip * || ui_print "   ! Unable to backup ${f}!"
+  zip -r4 /sdcard/apt_fwpatchundo/apt_UndoFwPatch.zip * || ex "   ! Unable to backup ${f}!"
 else
   log "Nothing to backup... skipping"
 fi
 
 # Now to process the patches - /system/framework
 if [ "$framework" -eq "1" ]; then
-   ui_print " - Adding power_profile.xml"
+  ui_print " - Adding power_profile.xml"
   cd $PATCHDIR/apply/system/framework
   f=framework-res.apk
   log "Working on $f"
@@ -289,8 +296,8 @@ fi
 
 prop_append() {
 # Set out files paramaters
-tweak="$1"
-build="$2"
+local tweak="$1"
+local build="$2"
 
 # Check for backup
 answer=$(busybox sed "s/BACKUP=//p;d" "$tweak")
@@ -365,9 +372,9 @@ busybox sed '/^ *$/d' -i "$build"
 }
 
 patch_ramdisk() {
-script=patch.sh
+local tmp_script=patch_boot.sh
 
-# Mouve cpio for changing.
+# Move cpio for changing.
 mv ramdisk.cpio $BOOTDIR/ramdisk.cpio
 cd $BOOTDIR
 
@@ -393,12 +400,12 @@ fi
 }
 
 # Start making a script to add all .rc at once, required since it will bootloop if we adf then one by one.
-busybox echo "boot --cpio ramdisk.cpio \\" >> $script
+busybox echo "boot --cpio ramdisk.cpio \\" >> $tmp_script
 
 # Check if folder is empty from .rc/.sh files or not
 if [[ "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"rc"* && "$(find . ! '(' -name 'patch.sh' -o -name 'default.prop' ')')" != *"sh"* ]]; then
    ui_print " ! Boot folder empty, skipping .rc replaces"
-   $USE_VENDOR_PROPS || busybox echo "\"add 755 default.prop default.prop\" \\" >> $script
+   $USE_VENDOR_PROPS || busybox echo "\"add 755 default.prop default.prop\" \\" >> $tmp_script
 else
    ui_print " - Adding rc files to boot.img:"
    for file in $(busybox ls)
@@ -411,16 +418,16 @@ else
                  log "Skipped $file"
             else
                  ui_print "  * Adding ${file}"
-                 busybox echo "\"add 755 ${file} ${file}\" \\" >> $script
+                 busybox echo "\"add 755 ${file} ${file}\" \\" >> $tmp_script
             fi
 done
 fi
 
 # Add dm-verity/forceencrypt patch line, then run script
-ui_print "  * Removing dm-verity,forceencryptition if found.."
-busybox echo "\"patch $KEEPVERITY $KEEPFORCEENCRYPT\"" >> $script
-chmod 755 $script
-. ./$script
+ui_print "  * Removing dm-verity, forceencryptition if found.."
+busybox echo "\"patch $KEEPVERITY $KEEPFORCEENCRYPT\"" >> $tmp_script
+chmod 755 $tmp_script
+. ./$tmp_script
 
 # Remove the .orig cpio
 busybox rm -f ramdisk.cpio.orig
@@ -430,7 +437,11 @@ cd $TMPDIR
 mv $BOOTDIR/ramdisk.cpio ramdisk.cpio
 }
 
-port_boot() {
+patch_boot() {
+[ "$(ls $BOOTDIR | busybox sed 's/PLACE_.*//')" == "" ] && {
+ui_print "  ! Nothing to patch"
+return 0
+}
 cd $TMPDIR
 
 # Fix perms, and KEEP* flags
@@ -483,33 +494,35 @@ cd $ROOTDIR
 #              #
 ################
 
-log "Main Script Started, Current Version: $VER"
+ui_print "* Android Auto Patch Tool v$VER *"
+
+# read the config before doing any thing
+load_config
 
 get_flags
 
-$USE_VENDOR_PROPS && { 
+[ -f "$buildprop" ] && {
+[ $USE_VENDOR_PROPS ] && { 
 ui_print "- Adding vendor build.prop changes..."
 prop_append "$buildprop" "$vendorprop"
-} || {
-[ -f "$buildprop" ] && {
+}
+[ ! $USE_VENDOR_PROPS ] && {
 ui_print "- Adding build.prop changes..."
 prop_append "$buildprop" "$systemprop"
-} || ui_print "! Skipping build.prop changes!"
 }
+} || ui_print "! Skipped build.prop changes"
 
-ui_print "- Porting Boot.img started:"
+ui_print "- Pathing Boot image"
 
-fix_recovery
-port_boot
-unfix_recovery
+patch_boot
 
-ui_print "- Patching power-profile to frameworks-res:"
+ui_print "- Patching power-profile to frameworks-res"
 
 change_power
 
-$DONT_FIX_PERMISSIONS && {
+[ ! $DONT_FIX_PERMISSIONS ] && {
 ui_print "- Fixing /system permissions"
 fix_permissions
-} || ui_print "! No permissions fixing!"
+}
 
 clean_all
